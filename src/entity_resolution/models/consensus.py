@@ -1,124 +1,264 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+from typing import List, Dict, Optional
 
-class EntityConsensusModule(nn.Module):
-    def __init__(self, encoder_dim=768, threshold=0.6):
+class ConsensusModule(nn.Module):
+    """
+    OneNet-inspired consensus module for resolving entity conflicts.
+
+    This module combines multiple entity resolution strategies and resolves
+    conflicts between overlapping entity mentions.
+    """
+    def __init__(self, hidden_size=768, threshold=0.6):
         super().__init__()
-        # Model confidence calibration
+
+        self.hidden_size = hidden_size
+        self.threshold = threshold
+
+        # Confidence calibration module
         self.confidence_calibration = nn.Sequential(
-            nn.Linear(3, 16),  # 3 score types
+            nn.Linear(3, 16),  # Combine scores from multiple methods
             nn.ReLU(),
-            nn.Linear(16, 3),
-            nn.Softmax(dim=-1)
+            nn.Dropout(0.1),
+            nn.Linear(16, 1),
+            nn.Sigmoid()
         )
 
-        # OneNet-inspired consensus judger
-        self.consensus_threshold = threshold
-        self.conflict_resolver = nn.Linear(encoder_dim*2, 1)
+        # Conflict resolution module
+        self.conflict_resolver = nn.Sequential(
+            nn.Linear(hidden_size * 3, hidden_size),
+            nn.ReLU(),
+            nn.Dropout(0.1),
+            nn.Linear(hidden_size, 1),
+            nn.Sigmoid()
+        )
 
-    def resolve_conflicts(self, entity_results, text_embeddings):
-        """Resolve entity conflicts using OneNet approach"""
+    def calibrate_confidence(self, entity_scores):
+        """
+        Calibrate confidence scores for entity predictions.
+
+        Args:
+            entity_scores: Dictionary or tensor with raw scores from different methods
+
+        Returns:
+            Calibrated confidence score
+        """
+        if isinstance(entity_scores, dict):
+            # Extract scores from dictionary
+            scores = [
+                entity_scores.get("mention_score", 0.5),
+                entity_scores.get("entity_score", 0.5),
+                entity_scores.get("context_score", 0.5)
+            ]
+            scores_tensor = torch.tensor(scores, device=next(self.parameters()).device).float()
+        else:
+            # Use tensor directly
+            scores_tensor = entity_scores
+
+        # Calibrate confidence
+        calibrated_score = self.confidence_calibration(scores_tensor)
+
+        return calibrated_score
+
+    def resolve_conflicts(self, entities, entity_embeddings=None):
+        """
+        Resolve conflicts between overlapping entity mentions.
+
+        Args:
+            entities: List of entity dictionaries
+            entity_embeddings: Optional embeddings for each entity
+
+        Returns:
+            List of resolved entity dictionaries
+        """
+        if not entities:
+            return []
+
         # Group entities by overlapping spans
-        span_groups = self._group_overlapping_spans(entity_results)
+        span_groups = self._group_overlapping_spans(entities)
 
+        # Resolve each group
         resolved_entities = []
+
         for group in span_groups:
             if len(group) == 1:
                 # No conflict
                 resolved_entities.append(group[0])
             else:
-                # Resolve conflict using context and entity embeddings
-                context_start = min(result['mention'][0] for result in group) - 5
-                context_end = max(result['mention'][1] for result in group) + 5
-                context_start = max(0, context_start)
-                context_end = min(text_embeddings.size(1) - 1, context_end)
-
-                context_embedding = text_embeddings[:, context_start:context_end].mean(dim=1)
-
-                best_score = -1
-                best_entity = None
-
-                for result in group:
-                    top_candidate_id = max(
-                        result['candidate_scores'],
-                        key=lambda x: result['candidate_scores'][x]['final_score']
-                    )
-                    candidate_embedding = result['candidate_scores'][top_candidate_id]['candidate']['embedding']
-
-                    conflict_score = torch.sigmoid(self.conflict_resolver(
-                        torch.cat([context_embedding, candidate_embedding], dim=-1)
-                    ))
-
-                    if conflict_score.item() > best_score:
-                        best_score = conflict_score.item()
-                        best_entity = result
+                # Resolve conflict
+                if entity_embeddings is not None:
+                    # Use entity embeddings for resolution
+                    best_entity = self._resolve_with_embeddings(group, entity_embeddings)
+                else:
+                    # Use confidence scores for resolution
+                    best_entity = max(group, key=lambda e: e.get("confidence", 0))
 
                 resolved_entities.append(best_entity)
 
         return resolved_entities
 
-    def _group_overlapping_spans(self, entity_results):
-        """Group entities with overlapping spans"""
+    def _group_overlapping_spans(self, entities):
+        """
+        Group entities with overlapping spans.
+
+        Args:
+            entities: List of entity dictionaries
+
+        Returns:
+            List of entity groups
+        """
+        # Sort entities by span start position
+        sorted_entities = sorted(entities, key=lambda e: e["mention_span"][0])
+
+        # Group overlapping spans
         groups = []
-        for result in entity_results:
-            start, end = result['mention']
+        current_group = []
 
-            # Check if this span overlaps with any existing group
-            found_group = False
-            for group in groups:
-                for existing in group:
-                    e_start, e_end = existing['mention']
-                    # Check overlap condition
-                    if (start <= e_end and end >= e_start):
-                        group.append(result)
-                        found_group = True
-                        break
+        for entity in sorted_entities:
+            if not current_group:
+                # First entity in group
+                current_group = [entity]
+            else:
+                # Check if entity overlaps with current group
+                curr_end = max(e["mention_span"][1] for e in current_group)
+                if entity["mention_span"][0] <= curr_end:
+                    # Overlap
+                    current_group.append(entity)
+                else:
+                    # No overlap, start new group
+                    groups.append(current_group)
+                    current_group = [entity]
 
-                if found_group:
-                    break
-
-            # If no overlapping group found, create a new one
-            if not found_group:
-                groups.append([result])
+        # Add last group
+        if current_group:
+            groups.append(current_group)
 
         return groups
 
-    def forward(self, entity_results, text_embeddings):
-        # Calculate final scores using weighted combination
-        for result in entity_results:
-            for candidate_id, scores in result['candidate_scores'].items():
-                # Collect scores from different methods
-                method_scores = torch.tensor([
-                    scores['relik_score'],
-                    scores['atg_score'],
-                    scores['unirel_score']
-                ])
+    def _resolve_with_embeddings(self, entities, entity_embeddings):
+        """
+        Resolve conflicts using entity embeddings.
 
-                # Apply confidence calibration
-                weights = self.confidence_calibration(method_scores)
+        Args:
+            entities: List of conflicting entity dictionaries
+            entity_embeddings: Embeddings for each entity
 
-                # Calculate weighted final score
-                final_score = (weights * method_scores).sum().item()
-                scores['final_score'] = final_score
+        Returns:
+            Best entity from the conflicting group
+        """
+        # Get embeddings for each entity
+        embs = []
+        for entity in entities:
+            entity_id = entity["entity_id"]
+            if entity_id in entity_embeddings:
+                embs.append(entity_embeddings[entity_id])
+            else:
+                # Use zero embedding if not found
+                embs.append(torch.zeros(self.hidden_size, device=next(self.parameters()).device))
 
-        # Resolve conflicts between overlapping entity mentions
-        resolved_entities = self.resolve_conflicts(entity_results, text_embeddings)
+        # Stack embeddings
+        embs = torch.stack(embs)
 
-        # Filter entities based on confidence
-        linked_entities = []
-        for result in resolved_entities:
-            # Find best candidate
-            best_candidate_id = max(
-                result['candidate_scores'],
-                key=lambda x: result['candidate_scores'][x]['final_score']
-            )
-            best_score = result['candidate_scores'][best_candidate_id]['final_score']
+        # Get confidence scores
+        conf_scores = torch.tensor([entity.get("confidence", 0.5) for entity in entities],
+                                  device=next(self.parameters()).device)
 
-            if best_score >= self.consensus_threshold:
-                linked_entities.append({
-                    'mention': result['mention'],
-                    'entity': result['candidate_scores'][best_candidate_id]['candidate'],
-                    'confidence': best_score
-                })
+        # Combine embeddings and confidence scores
+        combined = torch.cat([embs, conf_scores.unsqueeze(1).expand(-1, self.hidden_size)], dim=1)
 
-        return linked_entities
+        # Compute resolution scores
+        scores = self.conflict_resolver(combined)
+
+        # Get best entity
+        best_idx = torch.argmax(scores).item()
+
+        return entities[best_idx]
+
+    def resolve_entities(self, entities, context=None):
+        """
+        Resolve entities and filter by confidence threshold.
+
+        Args:
+            entities: List of entity dictionaries
+            context: Optional context text
+
+        Returns:
+            List of resolved and filtered entity dictionaries
+        """
+        # Calibrate confidence for each entity
+        for entity in entities:
+            if "confidence" not in entity:
+                # Create scores dictionary
+                scores = {
+                    "mention_score": entity.get("mention_score", 0.5),
+                    "entity_score": entity.get("entity_score", 0.5),
+                    "context_score": entity.get("context_score", 0.5)
+                }
+
+                # Calibrate confidence
+                entity["confidence"] = self.calibrate_confidence(scores).item()
+
+        # Resolve conflicts
+        resolved = self.resolve_conflicts(entities)
+
+        # Filter by confidence threshold
+        filtered = [e for e in resolved if e.get("confidence", 0) >= self.threshold]
+
+        return filtered
+
+    def loss(self, predicted_entities, gold_entities):
+        """
+        Compute loss for consensus module training.
+
+        Args:
+            predicted_entities: Predicted entity dictionaries
+            gold_entities: Gold entity dictionaries
+
+        Returns:
+            Loss value
+        """
+        # Extract confidence scores
+        pred_scores = []
+        gold_labels = []
+
+        for pred in predicted_entities:
+            pred_id = (pred["mention"], pred["entity_id"])
+            score = pred.get("confidence", 0.5)
+            pred_scores.append(score)
+
+            # Check if prediction matches any gold entity
+            label = 0
+            for gold in gold_entities:
+                gold_id = (gold["mention"], gold["entity_id"])
+                if pred_id == gold_id:
+                    label = 1
+                    break
+
+            gold_labels.append(label)
+
+        # Convert to tensors
+        if pred_scores:
+            pred_scores = torch.tensor(pred_scores, device=next(self.parameters()).device)
+            gold_labels = torch.tensor(gold_labels, device=next(self.parameters()).device)
+
+            # Compute binary cross-entropy loss
+            loss = F.binary_cross_entropy(pred_scores, gold_labels.float())
+        else:
+            # No predictions
+            loss = torch.tensor(0.0, device=next(self.parameters()).device, requires_grad=True)
+
+        return loss
+
+    def forward(self, entities, context=None):
+        """
+        Forward pass for consensus module.
+
+        Args:
+            entities: List of entity dictionaries
+            context: Optional context text
+
+        Returns:
+            List of resolved and filtered entity dictionaries
+        """
+        return self.resolve_entities(entities, context)

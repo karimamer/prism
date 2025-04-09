@@ -1,472 +1,499 @@
 import torch
 import torch.nn as nn
-from transformers import AutoTokenizer, AutoConfig, AutoModel
-from .models.candidate_generation import EntityCandidateGenerator
-from .models.encoder import EntityFocusedEncoder
-from .models.processor import EntityResolutionProcessor
-from .models.consensus import EntityConsensusModule
-from .models.output import EntityOutputFormatter
+import torch.nn.functional as F
+import os
+import json
+import logging
+from typing import List, Dict, Tuple, Optional, Union, Any
+
+from src.entity_resolution.models.retriever import EntityRetriever
+from src.entity_resolution.models.reader import EntityReader
+from src.entity_resolution.models.consensus import ConsensusModule
+from src.entity_resolution.database.vector_store import EntityKnowledgeBase
+from transformers import AutoTokenizer
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 class UnifiedEntityResolutionSystem(nn.Module):
+    """
+    Unified entity resolution system that integrates state-of-the-art
+    techniques from ReLiK, SpEL, ATG, UniRel, and OneNet.
+    """
     def __init__(self, config=None):
         super().__init__()
 
         # Default configuration if none provided
         if config is None:
             config = {
-                "encoder_name": "microsoft/deberta-v3-base",
-                "encoder_dim": 768,  # DeBERTa-v3-base hidden size
-                "entity_knowledge_dim": 256,
+                "retriever_model": "microsoft/deberta-v3-small",
+                "reader_model": "microsoft/deberta-v3-base",
+                "entity_dim": 256,
                 "max_seq_length": 512,
-                "num_entity_types": 50,
+                "max_entity_length": 100,
+                "top_k_candidates": 50,
                 "consensus_threshold": 0.6,
-                "top_k_candidates": 50
+                "batch_size": 8,
+                "index_path": "./entity_index",
+                "cache_dir": "./cache",
+                "use_gpu": torch.cuda.is_available(),
+                "quantization": None  # None, "int8", or "fp16"
             }
 
         self.config = config
+        self.device = torch.device("cuda" if config["use_gpu"] and torch.cuda.is_available() else "cpu")
 
-        # Initialize tokenizer with use_fast=False to avoid conversion issues
-        try:
-            self.tokenizer = AutoTokenizer.from_pretrained(
-                config["encoder_name"],
-                use_fast=False
-            )
-            print(f"Loaded tokenizer for {config['encoder_name']}")
-        except Exception as e:
-            print(f"Error loading DeBERTa tokenizer: {e}")
-            print("Falling back to RoBERTa tokenizer")
-            # Fallback to RoBERTa if DeBERTa has issues
-            self.tokenizer = AutoTokenizer.from_pretrained(
-                "roberta-base",
-                use_fast=True
-            )
-
-        # Initialize a simple base encoder directly instead of using EntityFocusedEncoder
-        try:
-            self.base_encoder = AutoModel.from_pretrained(config["encoder_name"])
-            print(f"Loaded model for {config['encoder_name']}")
-        except Exception as e:
-            print(f"Error loading DeBERTa model: {e}")
-            print("Falling back to RoBERTa model")
-            # Fallback to RoBERTa if DeBERTa has issues
-            self.base_encoder = AutoModel.from_pretrained("roberta-base")
-            config["encoder_name"] = "roberta-base"
-
-        # Initialize entity encoder as a wrapper around base encoder
-        self.entity_encoder = nn.Sequential(
-            nn.Linear(self.base_encoder.config.hidden_size, config["entity_knowledge_dim"]),
-            nn.ReLU(),
-            nn.Linear(config["entity_knowledge_dim"], config["entity_knowledge_dim"])
-        )
+        # Create cache directory if it doesn't exist
+        os.makedirs(config["cache_dir"], exist_ok=True)
 
         # Initialize knowledge base
-        self.knowledge_base = self._create_knowledge_base()
+        self.knowledge_base = self._initialize_knowledge_base()
 
-        # Other components
-        self.candidate_generator = EntityCandidateGenerator(
-            knowledge_base=self.knowledge_base,
-            embedding_dim=config["encoder_dim"]
+        # Initialize retriever
+        logger.info(f"Initializing retriever with model {config['retriever_model']}")
+        self.retriever = EntityRetriever(
+            model_name=config["retriever_model"],
+            entity_dim=config["entity_dim"],
+            shared_encoder=True,  # Parameter efficient
+            use_faiss=True,       # Use FAISS for efficient retrieval
+            top_k=config["top_k_candidates"]
         )
 
-        self.entity_processor = EntityResolutionProcessor(
-            encoder_dim=config["encoder_dim"]
+        # Move retriever to device
+        self.retriever.to(self.device)
+
+        # Initialize reader
+        logger.info(f"Initializing reader with model {config['reader_model']}")
+        self.reader = EntityReader(
+            model_name=config["reader_model"],
+            max_seq_length=config["max_seq_length"],
+            max_entity_length=config["max_entity_length"],
+            gradient_checkpointing=True  # Enable gradient checkpointing for memory efficiency
         )
 
-        self.consensus_module = EntityConsensusModule(
-            encoder_dim=config["encoder_dim"],
+        # Move reader to device
+        self.reader.to(self.device)
+
+        # Initialize consensus module
+        self.consensus = ConsensusModule(
+            hidden_size=self.reader.config.hidden_size,
             threshold=config["consensus_threshold"]
         )
 
-        self.output_formatter = EntityOutputFormatter(self.tokenizer)
+        # Move consensus module to device
+        self.consensus.to(self.device)
 
-        # Enable gradient checkpointing for large models
-        if "large" in config["encoder_name"]:
-            self.base_encoder.gradient_checkpointing_enable()
+        # Apply quantization if specified
+        if config["quantization"]:
+            self._apply_quantization(config["quantization"])
 
-    def _create_knowledge_base(self):
-        """Create or load knowledge base - placeholder implementation"""
-        # In a real implementation, this would load entity data from disk
-        # or connect to an external knowledge base service
-        return InMemoryKnowledgeBase()
+        # Initialize cache for entity embeddings
+        self.entity_embedding_cache = {}
 
-    def forward(self, input_ids, attention_mask, entity_knowledge=None):
+        logger.info("Entity resolution system initialized")
+
+    def _initialize_knowledge_base(self):
+        """Initialize the entity knowledge base"""
+        kb = EntityKnowledgeBase(
+            index_path=self.config["index_path"],
+            cache_dir=self.config["cache_dir"]
+        )
+        return kb
+
+    def _apply_quantization(self, quantization_type):
+        """Apply quantization to models for faster inference"""
+        logger.info(f"Applying {quantization_type} quantization")
+
+        if quantization_type == "int8":
+            # Quantize retriever
+            import torch.quantization
+            self.retriever.eval()
+            self.retriever = torch.quantization.quantize_dynamic(
+                self.retriever,
+                {nn.Linear},
+                dtype=torch.qint8
+            )
+
+            # Quantize reader
+            self.reader.quantize("int8")
+
+        elif quantization_type == "fp16":
+            # Convert to half precision
+            self.retriever = self.retriever.half()
+            self.reader.quantize("fp16")
+            self.consensus = self.consensus.half()
+
+        logger.info(f"Models quantized to {quantization_type}")
+
+    def load_entities(self, entity_file):
         """
-        Main forward pass for entity resolution
+        Load entities from a file into the knowledge base.
 
         Args:
-            input_ids: Tokenized input text
-            attention_mask: Attention mask for input text
-            entity_knowledge: Optional external entity knowledge
-
-        Returns:
-            Dictionary containing resolved entities and metadata
+            entity_file: Path to entity file (JSON or CSV)
         """
-        # 1. Encode input text with base encoder
-        outputs = self.base_encoder(
-            input_ids=input_ids,
-            attention_mask=attention_mask
-        )
-        text_embeddings = outputs.last_hidden_state
+        logger.info(f"Loading entities from {entity_file}")
 
-        # 2. Generate entity candidates from multiple sources
-        entity_candidates = self.candidate_generator(
-            text_embeddings=text_embeddings,
-            top_k=self.config["top_k_candidates"]
-        )
+        # Load entities
+        entities = self.knowledge_base.load_entities(entity_file)
 
-        # 3. Process entity candidates with multiple methods
-        entity_results = self.entity_processor(
-            text_embeddings=text_embeddings,
-            entity_candidates=entity_candidates
-        )
+        # Build retriever index
+        self.retriever.build_index(entities)
 
-        # 4. Reach consensus on entity resolution
-        linked_entities = self.consensus_module(
-            entity_results=entity_results,
-            text_embeddings=text_embeddings
-        )
+        logger.info(f"Loaded {len(entities)} entities into knowledge base")
 
-        # 5. Format structured entity output
-        entity_output = self.output_formatter(
-            linked_entities=linked_entities,
-            input_ids=input_ids
-        )
-
-        return entity_output
+        return len(entities)
 
     def process_text(self, text):
         """
-        Process raw text for entity resolution
+        Process a text document for entity resolution.
 
         Args:
-            text: Raw input text
+            text: Input text
 
         Returns:
-            Dictionary containing resolved entities and metadata
+            Dictionary with resolved entities
         """
-        # Tokenize the input text
-        encoded = self.tokenizer(
+        # Ensure text is a string
+        if not isinstance(text, str):
+            text = str(text)
+
+        # Tokenize text for retriever
+        tokenizer = self.retriever.tokenizer
+        encoded_text = tokenizer(
             text,
-            padding="max_length",
+            padding=True,
             truncation=True,
-            max_length=self.config["max_seq_length"],
             return_tensors="pt",
-            return_offsets_mapping=True  # For span mapping
-        )
+            max_length=self.config["max_seq_length"]
+        ).to(self.device)
 
-        # Store offset mapping for later use in span conversion
-        offset_mapping = encoded.pop("offset_mapping", None)
+        # Step 1: Retrieve candidate entities (ReLiK approach)
+        logger.info("Retrieving candidate entities")
+        with torch.no_grad():
+            candidates = self.retriever.retrieve(
+                encoded_text["input_ids"],
+                encoded_text["attention_mask"],
+                top_k=self.config["top_k_candidates"]
+            )
 
-        # If offset_mapping is None (some tokenizers don't support it),
-        # create a simple approximation
-        if offset_mapping is None:
-            # Create a simple approximation of offset_mapping
-            tokens = self.tokenizer.tokenize(text)
-            offset_mapping = torch.zeros((1, len(tokens), 2), dtype=torch.long)
+        # Format candidates for reader
+        candidate_entities = []
+        for entity_id, entity_data, score in candidates:
+            candidate_entities.append({
+                "id": entity_id,
+                "name": entity_data["name"],
+                "description": entity_data.get("description", ""),
+                "type": entity_data.get("type", "UNKNOWN"),
+                "score": score
+            })
 
-            current_pos = 0
-            for i, token in enumerate(tokens):
-                # Skip special tokens
-                if token in self.tokenizer.all_special_tokens:
-                    offset_mapping[0, i, 0] = 0
-                    offset_mapping[0, i, 1] = 0
-                    continue
+        logger.info(f"Retrieved {len(candidate_entities)} candidate entities")
 
-                # Find position of token in original text
-                token_text = token.replace("##", "").replace("Ġ", "")
-                token_pos = text[current_pos:].find(token_text)
-                if token_pos >= 0:
-                    start_pos = current_pos + token_pos
-                    end_pos = start_pos + len(token_text)
-                    offset_mapping[0, i, 0] = start_pos
-                    offset_mapping[0, i, 1] = end_pos
-                    current_pos = end_pos
-                else:
-                    # Fallback if token not found
-                    offset_mapping[0, i, 0] = current_pos
-                    offset_mapping[0, i, 1] = current_pos
+        # Step 2: Process with reader to link entities (SpEL approach)
+        logger.info("Processing with reader")
+        reader_results = self.reader.process_text(text, candidate_entities)
 
-        # Simplified placeholder implementation during development
-        # Instead of running the full model, we'll use the fallback entity extractor
-        from src.entity_resolution.run_entity_resolution import extract_placeholder_entities
-        entities = extract_placeholder_entities(text)
+        # Step 3: Apply consensus to resolve conflicts (OneNet approach)
+        logger.info("Applying consensus")
+        consensus_results = self.consensus.resolve_entities(reader_results["entities"], text)
 
-        # Format the output to match the expected structure
-        output = {
-            "entities": entities,
-            "text": text
+        # Format final results
+        result = {
+            "text": text,
+            "entities": consensus_results
         }
 
-        return output
+        return result
 
-        # Comment out the full model forward pass for now until the model is fully implemented
-        # Forward pass
-        # with torch.no_grad():
-        #     outputs = self(
-        #         input_ids=encoded["input_ids"],
-        #         attention_mask=encoded["attention_mask"]
-        #     )
-
-        # Map spans back to original text using offset mapping
-        # final_outputs = self._map_spans_to_original(outputs, offset_mapping)
-        # final_outputs["text"] = text
-
-        # return final_outputs
-
-    def _map_spans_to_original(self, outputs, offset_mapping):
+    def process_batch(self, texts):
         """
-        Maps token-level spans to character-level spans in original text
+        Process a batch of texts for entity resolution.
 
         Args:
-            outputs: Model outputs with token-level spans
-            offset_mapping: Mapping from tokens to character positions
+            texts: List of input texts
 
         Returns:
-            Updated outputs with character-level spans
+            List of dictionaries with resolved entities
         """
-        entities = outputs["entities"]
-        updated_entities = []
+        results = []
 
-        for entity in entities:
-            token_start, token_end = entity["mention_span"]
+        # Process in batches of the configured size
+        batch_size = self.config["batch_size"]
 
-            # Convert token positions to character positions
-            char_start = offset_mapping[0][token_start][0].item()
-            char_end = offset_mapping[0][token_end][1].item()
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i:i+batch_size]
+            logger.info(f"Processing batch {i//batch_size + 1}/{(len(texts) + batch_size - 1)//batch_size}")
 
-            # Create updated entity with character-level spans
-            updated_entity = {**entity}
-            updated_entity["char_span"] = (char_start, char_end)
-            updated_entities.append(updated_entity)
+            # Process each text in the batch
+            batch_results = []
+            for text in batch:
+                result = self.process_text(text)
+                batch_results.append(result)
 
-        return {"entities": updated_entities}
+            results.extend(batch_results)
 
-    def train_system(self, train_datasets, val_datasets, num_epochs=5):
+        return results
+
+    def train(self, train_data, val_data=None, learning_rate=1e-5, num_epochs=5):
         """
-        End-to-end training of the entity resolution system
+        Train the entity resolution system.
 
         Args:
-            train_datasets: Training datasets for different components
-            val_datasets: Validation datasets
+            train_data: Training data
+            val_data: Validation data
+            learning_rate: Learning rate
             num_epochs: Number of training epochs
-        """
-        # Create optimizers with different learning rates for different components
-        optimizer = torch.optim.AdamW([
-            {'params': self.base_encoder.parameters(), 'lr': 5e-6},
-            {'params': self.entity_encoder.parameters(), 'lr': 1e-5},
-            {'params': self.candidate_generator.parameters(), 'lr': 2e-5},
-            {'params': self.entity_processor.parameters(), 'lr': 2e-5},
-            {'params': self.consensus_module.parameters(), 'lr': 2e-5}
-        ], weight_decay=0.01)
 
-        # Create scheduler
-        total_steps = len(train_datasets["dataloader"]) * num_epochs
-        scheduler = get_linear_schedule_with_warmup(
-            optimizer,
-            num_warmup_steps=int(total_steps * 0.1),
-            num_training_steps=total_steps
-        )
+        Returns:
+            Training history
+        """
+        logger.info("Starting training")
+
+        # Set models to training mode
+        self.retriever.train()
+        self.reader.train()
+        self.consensus.train()
+
+        # Create optimizer
+        optimizer = torch.optim.AdamW([
+            {'params': self.retriever.parameters(), 'lr': learning_rate},
+            {'params': self.reader.parameters(), 'lr': learning_rate},
+            {'params': self.consensus.parameters(), 'lr': learning_rate}
+        ], lr=learning_rate)
+
+        # Training history
+        history = {
+            "train_loss": [],
+            "val_loss": [],
+            "val_f1": []
+        }
 
         # Training loop
-        best_val_score = 0
         for epoch in range(num_epochs):
-            # Train
-            self.train()
-            train_loss = 0
+            logger.info(f"Epoch {epoch+1}/{num_epochs}")
 
-            for batch in train_datasets["dataloader"]:
+            # Training
+            total_loss = 0
+            for batch in train_data:
                 # Zero gradients
                 optimizer.zero_grad()
 
                 # Forward pass
-                outputs = self(
-                    input_ids=batch["input_ids"],
-                    attention_mask=batch["attention_mask"]
-                )
-
-                # Calculate loss
-                loss = self._calculate_loss(outputs, batch["labels"])
+                loss = self._training_step(batch)
 
                 # Backward pass
                 loss.backward()
 
                 # Update parameters
                 optimizer.step()
-                scheduler.step()
 
-                train_loss += loss.item()
+                total_loss += loss.item()
 
-            avg_train_loss = train_loss / len(train_datasets["dataloader"])
-            print(f"Epoch {epoch+1}/{num_epochs}, Training Loss: {avg_train_loss:.4f}")
+            # Average training loss
+            avg_train_loss = total_loss / len(train_data)
+            history["train_loss"].append(avg_train_loss)
 
-            # Validate
-            val_score = self._validate(val_datasets)
-            print(f"Validation Score: {val_score:.4f}")
+            logger.info(f"Training loss: {avg_train_loss:.4f}")
 
-            # Save best model
-            if val_score > best_val_score:
-                best_val_score = val_score
-                torch.save(self.state_dict(), f"best_entity_resolution_model.pt")
+            # Validation
+            if val_data is not None:
+                val_loss, val_f1 = self._validate(val_data)
+                history["val_loss"].append(val_loss)
+                history["val_f1"].append(val_f1)
 
-        print(f"Training complete. Best validation score: {best_val_score:.4f}")
+                logger.info(f"Validation loss: {val_loss:.4f}, F1: {val_f1:.4f}")
 
-    def _calculate_loss(self, outputs, labels):
+        logger.info("Training complete")
+
+        return history
+
+    def _training_step(self, batch):
         """
-        Calculate combined loss for entity resolution
+        Perform a single training step.
 
         Args:
-            outputs: Model outputs
-            labels: Ground truth labels
+            batch: Batch of training data
 
         Returns:
-            Combined loss value
+            Loss value
         """
-        # Extract different aspects of the task
-        mention_loss = self._calculate_mention_detection_loss(outputs, labels)
-        linking_loss = self._calculate_entity_linking_loss(outputs, labels)
+        # Process batch with retriever
+        retriever_outputs = self.retriever(
+            batch["input_ids"].to(self.device),
+            batch["attention_mask"].to(self.device),
+            entity_ids=batch["entity_ids"]
+        )
 
-        # Combine losses with weighting
-        total_loss = 0.4 * mention_loss + 0.6 * linking_loss
+        # Calculate retriever loss
+        retriever_loss = self.retriever.contrastive_loss(
+            retriever_outputs["text_embeddings"],
+            retriever_outputs["entity_embeddings"],
+            batch["positive_pairs"]
+        )
+
+        # Process batch with reader
+        reader_outputs = self.reader(batch)
+
+        # Calculate reader loss
+        reader_loss = F.binary_cross_entropy_with_logits(
+            reader_outputs["entity_scores"],
+            batch["entity_labels"].to(self.device)
+        )
+
+        # Process batch with consensus
+        consensus_loss = self.consensus.loss(
+            reader_outputs["entities"],
+            batch["entity_labels"].to(self.device)
+        )
+
+        # Combine losses
+        total_loss = 0.3 * retriever_loss + 0.5 * reader_loss + 0.2 * consensus_loss
 
         return total_loss
 
-    def _calculate_mention_detection_loss(self, outputs, labels):
-        """Calculate loss for mention detection component"""
-        # Implementation depends on specific label format
-        # Placeholder implementation
-        return torch.tensor(0.0, requires_grad=True)
-
-    def _calculate_entity_linking_loss(self, outputs, labels):
-        """Calculate loss for entity linking component"""
-        # Implementation depends on specific label format
-        # Placeholder implementation
-        return torch.tensor(0.0, requires_grad=True)
-
-    def _validate(self, val_datasets):
+    def _validate(self, val_data):
         """
-        Validate the model on validation data
+        Validate the entity resolution system.
 
         Args:
-            val_datasets: Validation datasets
+            val_data: Validation data
 
         Returns:
-            Validation score (F1)
+            Tuple of (validation loss, F1 score)
         """
-        self.eval()
+        # Set models to evaluation mode
+        self.retriever.eval()
+        self.reader.eval()
+        self.consensus.eval()
+
+        total_loss = 0
         all_predictions = []
         all_labels = []
 
         with torch.no_grad():
-            for batch in val_datasets["dataloader"]:
-                outputs = self(
-                    input_ids=batch["input_ids"],
-                    attention_mask=batch["attention_mask"]
-                )
+            for batch in val_data:
+                # Forward pass
+                loss = self._training_step(batch)
+                total_loss += loss.item()
 
-                # Convert outputs to predictions
-                predictions = self._convert_outputs_to_predictions(outputs)
+                # Get predictions
+                predictions = self.process_batch(batch["texts"])
 
+                # Collect predictions and labels
                 all_predictions.extend(predictions)
                 all_labels.extend(batch["labels"])
 
+        # Calculate average loss
+        avg_loss = total_loss / len(val_data)
+
         # Calculate F1 score
-        f1 = calculate_entity_f1(all_predictions, all_labels)
+        f1 = self._calculate_f1(all_predictions, all_labels)
+
+        # Set models back to training mode
+        self.retriever.train()
+        self.reader.train()
+        self.consensus.train()
+
+        return avg_loss, f1
+
+    def _calculate_f1(self, predictions, labels):
+        """
+        Calculate F1 score for entity resolution.
+
+        Args:
+            predictions: Predicted entities
+            labels: Ground truth entities
+
+        Returns:
+            F1 score
+        """
+        tp = fp = fn = 0
+
+        for pred_dict, label_dict in zip(predictions, labels):
+            pred_entities = pred_dict["entities"]
+            label_entities = label_dict["entities"]
+
+            # Convert to sets for easy comparison
+            pred_set = {(e["mention"], e["entity_id"]) for e in pred_entities}
+            label_set = {(e["mention"], e["entity_id"]) for e in label_entities}
+
+            # Calculate TP, FP, FN
+            tp += len(pred_set.intersection(label_set))
+            fp += len(pred_set - label_set)
+            fn += len(label_set - pred_set)
+
+        # Calculate precision, recall, F1
+        precision = tp / (tp + fp) if tp + fp > 0 else 0
+        recall = tp / (tp + fn) if tp + fn > 0 else 0
+        f1 = 2 * precision * recall / (precision + recall) if precision + recall > 0 else 0
 
         return f1
 
-    def _convert_outputs_to_predictions(self, outputs):
-        """Convert model outputs to prediction format for evaluation"""
-        # Implementation depends on output and evaluation format
-        # Placeholder implementation
-        return []
-
-    def load_trained_model(self, model_path):
-        """Load a trained model from disk"""
-        self.load_state_dict(torch.load(model_path))
-        self.eval()
-        return self
-
-    def save_model(self, model_path):
-        """Save the current model to disk"""
-        torch.save(self.state_dict(), model_path)
-
-
-# Placeholder for knowledge base - would be implemented with actual data store
-class InMemoryKnowledgeBase:
-    def __init__(self):
-        # Initialize with empty entity store
-        self.entities = {}
-        self.entity_embeddings = {}
-
-    def retrieve(self, query_vector, top_k=100):
+    def save(self, path):
         """
-        Retrieve most similar entities to query vector
+        Save the entity resolution system.
 
         Args:
-            query_vector: Query embedding
-            top_k: Number of results to return
+            path: Path to save the model
+        """
+        logger.info(f"Saving model to {path}")
+
+        # Create directory if it doesn't exist
+        os.makedirs(path, exist_ok=True)
+
+        # Save retriever
+        self.retriever.save(f"{path}/retriever")
+
+        # Save reader
+        self.reader.save(f"{path}/reader")
+
+        # Save consensus module
+        torch.save(self.consensus.state_dict(), f"{path}/consensus.pt")
+
+        # Save configuration
+        with open(f"{path}/config.json", "w") as f:
+            json.dump(self.config, f, indent=2)
+
+        logger.info(f"Model saved to {path}")
+
+    @classmethod
+    def load(cls, path):
+        """
+        Load the entity resolution system.
+
+        Args:
+            path: Path to load the model from
 
         Returns:
-            Tuple of (entities, embeddings)
+            Loaded model
         """
-        # In a real implementation, this would search a vector database
-        # For now, return empty results
-        return [], []
+        logger.info(f"Loading model from {path}")
 
-    def load_entities(self, entity_data):
-        """Load entities into the knowledge base"""
-        self.entities = entity_data
-        # Generate embeddings for entities
-        # This is a placeholder - would actually compute embeddings
-        self.entity_embeddings = {eid: torch.randn(768) for eid in self.entities}
+        # Load configuration
+        with open(f"{path}/config.json", "r") as f:
+            config = json.load(f)
 
-    def get_entity_by_id(self, entity_id):
-        """Get entity by ID"""
-        return self.entities.get(entity_id, None)
+        # Create model instance
+        model = cls(config)
 
+        # Load retriever
+        model.retriever = EntityRetriever.load(f"{path}/retriever")
 
-# Helper function for scheduler
-def get_linear_schedule_with_warmup(optimizer, num_warmup_steps, num_training_steps, last_epoch=-1):
-    """
-    Create a schedule with a learning rate that decreases linearly from the initial lr set in the optimizer to 0,
-    after a warmup period during which it increases linearly from 0 to the initial lr set in the optimizer.
-    """
-    def lr_lambda(current_step: int):
-        if current_step < num_warmup_steps:
-            return float(current_step) / float(max(1, num_warmup_steps))
-        return max(0.0, float(num_training_steps - current_step) / float(max(1, num_training_steps - num_warmup_steps)))
+        # Load reader
+        model.reader = EntityReader.load(f"{path}/reader")
 
-    from torch.optim.lr_scheduler import LambdaLR
-    return LambdaLR(optimizer, lr_lambda, last_epoch)
+        # Load consensus module
+        model.consensus.load_state_dict(torch.load(f"{path}/consensus.pt"))
 
+        # Move models to device
+        model.retriever.to(model.device)
+        model.reader.to(model.device)
+        model.consensus.to(model.device)
 
-# Helper function for F1 calculation
-def calculate_entity_f1(predictions, gold_labels):
-    """
-    Calculate F1 score for entity resolution
+        logger.info(f"Model loaded from {path}")
 
-    Args:
-        predictions: Predicted entities
-        gold_labels: Gold standard entities
-
-    Returns:
-        F1 score
-    """
-    # Count true positives, false positives, and false negatives
-    tp = fp = fn = 0
-
-    # This is a simplified implementation - would need to be adapted to actual data format
-    for pred, gold in zip(predictions, gold_labels):
-        if pred == gold and pred is not None:
-            tp += 1
-        elif pred is not None and gold is None:
-            fp += 1
-        elif pred is None and gold is not None:
-            fn += 1
-
-    # Calculate precision, recall, and F1
-    precision = tp / (tp + fp) if (tp + fp) > 0 else 0
-    recall = tp / (tp + fn) if (tp + fn) > 0 else 0
-    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
-
-    return f1
+        return model
