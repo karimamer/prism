@@ -1,0 +1,6 @@
+TEXT: Apple Inc. was founded by Steve Jobs, Steve Wozniak, and Ronald Wayne in 1976.
+ENTITIES:
+
+TEXT: The United Nations has its headquarters in New York City.
+ENTITIES:
+
