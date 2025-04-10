@@ -38,7 +38,7 @@ class EntityRetriever(nn.Module):
         self.entity_projection = nn.Linear(hidden_size, entity_dim)
 
         # Tokenizer for processing text
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
