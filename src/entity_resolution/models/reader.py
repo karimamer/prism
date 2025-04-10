@@ -93,44 +93,9 @@ class EntityReader(nn.Module):
         Returns:
             Dictionary with model outputs
         """
-        # Format input text with special tokens
-        formatted_text = input_text
-
-        # Add entity markers if mentions are provided
-        if detected_mentions:
-            # Sort mentions in reverse order to avoid index shifting
-            sorted_mentions = sorted(detected_mentions, key=lambda x: x[0], reverse=True)
-
-            # Add entity markers around each mention
-            for start, end in sorted_mentions:
-                formatted_text = (
-                    formatted_text[:start] +
-                    f" <e> {formatted_text[start:end]} </e> " +
-                    formatted_text[end:]
-                )
-
-        # Add segment marker and candidate entities
-        formatted_text += f" <s> "
-
-        # Add candidate entities (UniRel-like approach)
-        for i, entity in enumerate(candidate_entities[:self.max_entity_length]):
-            entity_text = f"{entity['name']}"
-            if 'description' in entity and entity['description']:
-                # Truncate description to keep within limits
-                desc = entity['description']
-                if len(desc) > 100:
-                    desc = desc[:97] + "..."
-                entity_text += f": {desc}"
-
-            formatted_text += f" <c> {entity_text} </c> "
-
-            # Add segment separator if we have more entities
-            if i < len(candidate_entities) - 1 and i < self.max_entity_length - 1:
-                formatted_text += " "
-
         # Tokenize the formatted text
         encoding = self.tokenizer(
-            formatted_text,
+            input_text,
             padding="max_length",
             truncation=True,
             max_length=self.max_seq_length,
@@ -140,8 +105,8 @@ class EntityReader(nn.Module):
         )
 
         # Extract relevant outputs
-        input_ids = encoding["input_ids"]
-        attention_mask = encoding["attention_mask"]
+        input_ids = encoding["input_ids"].to(self.model.device)
+        attention_mask = encoding["attention_mask"].to(self.model.device)
         offset_mapping = encoding["offset_mapping"]
         special_tokens_mask = encoding["special_tokens_mask"]
 
@@ -149,21 +114,30 @@ class EntityReader(nn.Module):
         mention_positions = []
         candidate_positions = []
 
-        # Find all entity start/end markers
-        for i, (input_id, special_mask) in enumerate(zip(input_ids[0], special_tokens_mask[0])):
+        # Find all entity start/end markers and candidate markers
+        entity_start_positions = []
+        entity_end_positions = []
+
+        # Find positions of special tokens
+        for i, input_id in enumerate(input_ids[0]):
             if input_id.item() == self.entity_start_id:
-                mention_start = i
+                entity_start_positions.append(i)
             elif input_id.item() == self.entity_end_id:
-                mention_positions.append((mention_start, i))
+                entity_end_positions.append(i)
             elif input_id.item() == self.candidate_start_id:
                 candidate_start = i
             elif input_id.item() == self.candidate_end_id:
                 candidate_positions.append((candidate_start, i))
 
+        # Match entity start/end positions to create mention spans
+        if len(entity_start_positions) == len(entity_end_positions):
+            for start, end in zip(entity_start_positions, entity_end_positions):
+                mention_positions.append((start, end))
+
         # Forward pass through model
         outputs = self.model(
-            input_ids=input_ids.to(self.model.device),
-            attention_mask=attention_mask.to(self.model.device)
+            input_ids=input_ids,
+            attention_mask=attention_mask
         )
 
         # Get contextualized token representations
@@ -178,61 +152,65 @@ class EntityReader(nn.Module):
             "offset_mapping": offset_mapping
         }
 
-    def detect_mentions(self, hidden_states, attention_mask):
+    def detect_mentions(self, text):
         """
-        Detect entity mentions using SpEL's structured prediction approach.
+        Detect potential entity mentions in text.
 
         Args:
-            hidden_states: Contextualized token representations
-            attention_mask: Attention mask for input tokens
+            text: Input text
 
         Returns:
-            Dictionary with mention detection outputs
+            List of mention spans (start_token, end_token)
         """
-        # Predict BIO tags for each token
+        # Tokenize the text
+        tokenized = self.tokenizer(
+            text,
+            padding=False,
+            truncation=True,
+            return_tensors="pt",
+            return_offsets_mapping=True,
+            return_special_tokens_mask=False
+        )
+
+        input_ids = tokenized["input_ids"].to(self.model.device)
+        attention_mask = tokenized["attention_mask"].to(self.model.device)
+        offset_mapping = tokenized["offset_mapping"]
+
+        # Get model outputs
+        with torch.no_grad():
+            outputs = self.model(input_ids=input_ids, attention_mask=attention_mask)
+
+        # Hidden states
+        hidden_states = outputs.last_hidden_state
+
+        # Apply span classifier
         tag_logits = self.span_classifier(hidden_states)
         tag_probs = F.softmax(tag_logits, dim=-1)
 
-        # Predict most likely tag for each token
-        predicted_tags = torch.argmax(tag_probs, dim=-1)
+        # Get predictions (B-I-O tagging)
+        predictions = torch.argmax(tag_probs, dim=-1)[0].cpu().numpy()
 
-        # Extract mentions from predicted tags (B-I-O format)
-        batch_mentions = []
+        # Extract mentions from BIO tags
+        mentions = []
+        current_mention = None
 
-        for i in range(predicted_tags.size(0)):
-            mentions = []
-            current_mention = None
+        for i, tag in enumerate(predictions):
+            if tag == 1:  # B - Beginning of entity
+                if current_mention is not None:
+                    mentions.append((current_mention[0], i-1))
+                current_mention = (i, None)
+            elif tag == 2:  # I - Inside entity
+                continue
+            elif tag == 0:  # O - Outside entity
+                if current_mention is not None:
+                    mentions.append((current_mention[0], i-1))
+                    current_mention = None
 
-            for j in range(predicted_tags.size(1)):
-                # Skip if token is padding
-                if attention_mask[i, j] == 0:
-                    continue
+        # Handle case where mention continues until the end
+        if current_mention is not None:
+            mentions.append((current_mention[0], len(predictions)-1))
 
-                tag = predicted_tags[i, j].item()
-
-                if tag == 1:  # B tag (Beginning of entity)
-                    if current_mention is not None:
-                        mentions.append((current_mention[0], j-1))
-                    current_mention = (j, None)
-                elif tag == 2:  # I tag (Inside entity)
-                    continue
-                elif tag == 0:  # O tag (Outside entity)
-                    if current_mention is not None:
-                        mentions.append((current_mention[0], j-1))
-                        current_mention = None
-
-            # Handle case where mention continues until the end
-            if current_mention is not None:
-                mentions.append((current_mention[0], predicted_tags.size(1)-1))
-
-            batch_mentions.append(mentions)
-
-        return {
-            "tag_logits": tag_logits,
-            "tag_probs": tag_probs,
-            "predicted_tags": predicted_tags,
-            "mentions": batch_mentions
-        }
+        return mentions
 
     def link_entities(self, hidden_states, mention_positions, candidate_positions):
         """
@@ -396,10 +374,88 @@ class EntityReader(nn.Module):
         Returns:
             Dictionary with entity linking results
         """
-        # Encode text with candidates
-        encoding = self.encode_text_with_candidates(text, candidate_entities)
+        # Tokenize the input text
+        tokenized = self.tokenizer(
+            text,
+            padding=False,
+            truncation=True,
+            max_length=self.max_seq_length,
+            return_tensors="pt",
+            return_offsets_mapping=True
+        )
 
-        # Forward pass
+        # Simple rule-based detection of potential entities (capitalized words)
+        mentions = []
+
+        # Split text into words
+        words = text.split()
+
+        # Find potential entity mentions (capitalized words)
+        start_idx = 0
+        while start_idx < len(words):
+            # Skip non-capitalized words
+            if not words[start_idx] or not words[start_idx][0].isupper() or words[start_idx].lower() in ['the', 'a', 'an', 'in', 'on', 'at', 'by', 'for', 'with', 'and', 'or', 'but']:
+                start_idx += 1
+                continue
+
+            # Found potential start of entity
+            end_idx = start_idx
+
+            # Look for multi-word entities
+            while end_idx + 1 < len(words) and words[end_idx + 1][0].isupper() and words[end_idx + 1].lower() not in ['the', 'a', 'an', 'in', 'on', 'at', 'by', 'for', 'with', 'and', 'or', 'but']:
+                end_idx += 1
+
+            # Found a potential entity from start_idx to end_idx
+            mention_text = " ".join(words[start_idx:end_idx+1])
+
+            # Find character positions
+            char_start = text.find(mention_text)
+            if char_start >= 0:
+                char_end = char_start + len(mention_text) - 1
+
+                # Convert to token positions (approximate)
+                start_token = None
+                end_token = None
+
+                # Find tokens corresponding to character positions
+                for i, (start, end) in enumerate(tokenized["offset_mapping"][0]):
+                    if start_token is None and start <= char_start < end:
+                        start_token = i
+                    if end_token is None and start <= char_end < end:
+                        end_token = i
+
+                if start_token is not None and end_token is not None:
+                    mentions.append((start_token, end_token))
+
+            # Move to next potential entity
+            start_idx = end_idx + 1
+
+        # If no mentions found, return empty results
+        if not mentions:
+            return {"entities": [], "text": text}
+
+        # Format the input text with mentions and candidate entities
+        input_text_with_markers = text
+        for start, end in sorted(mentions, reverse=True):
+            # Get character positions
+            char_start = tokenized["offset_mapping"][0][start][0].item()
+            char_end = tokenized["offset_mapping"][0][end][1].item()
+
+            # Add entity markers
+            input_text_with_markers = (
+                input_text_with_markers[:char_start] +
+                " <e> " + input_text_with_markers[char_start:char_end] + " </e> " +
+                input_text_with_markers[char_end:]
+            )
+
+        # Encode text with candidate entities
+        encoding = self.encode_text_with_candidates(input_text_with_markers, candidate_entities)
+
+        # If no mention positions found in the encoding, return empty results
+        if not encoding["mention_positions"]:
+            return {"entities": [], "text": text}
+
+        # Forward pass through model
         with torch.no_grad():
             results = self.forward({
                 "input_ids": encoding["input_ids"],
@@ -408,19 +464,19 @@ class EntityReader(nn.Module):
                 "candidate_positions": encoding["candidate_positions"]
             })
 
-        # Convert results to a more interpretable format
+        # Extract linked entities
         linked_entities = []
 
         for i, (mention_pos, best_entity_idx) in enumerate(zip(results["mention_positions"], results["best_entities"])):
             if best_entity_idx is None:
                 continue
 
-            # Get mention text from input_ids
+            # Get mention text
             mention_start, mention_end = mention_pos
-            mention_tokens = encoding["input_ids"][0, mention_start+1:mention_end]  # +1 to skip <e> token
+            mention_tokens = encoding["input_ids"][0, mention_start+1:mention_end]
             mention_text = self.tokenizer.decode(mention_tokens)
 
-            # Get entity information
+            # Get entity
             entity = candidate_entities[best_entity_idx]
 
             # Get score

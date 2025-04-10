@@ -6,5 +6,13 @@
   {
     "text": "The United Nations has its headquarters in New York City.",
     "entities": []
+  },
+  {
+    "text": "Manchester United Football Club, commonly referred to as Man United (often stylised as Man Utd), is a professional football club based in Old Trafford, Greater Manchester, England. They compete in the Premier League, the top tier of English football. Nicknamed the Red Devils, they were founded as Newton Heath LYR Football Club in 1878, but changed their name to Manchester United in 1902. After a spell playing in Clayton, Manchester, the club moved to their current stadium, Old Trafford, in 1910.",
+    "entities": []
+  },
+  {
+    "text": "Domestically, Manchester United have won a record 20 top-flight league titles, 13 FA Cups, 6 League Cups and a record 21 FA Community Shields. Additionally, in international football, they have won the European Cup/UEFA Champions League three times, and the UEFA Europa League, the UEFA Cup Winners' Cup, the UEFA Super Cup, the Intercontinental Cup and the FIFA Club World Cup once each.[7][8] Appointed as manager in 1945, Matt Busby built a team with an average age of just 22 nicknamed the Busby Babes that won successive league titles in the 1950s and became the first English club to compete in the European Cup. Eight players were killed in the Munich air disaster, but Busby rebuilt the team around star players George Best, Denis Law and Bobby Charlton \u2013 known as the United Trinity. They won two more league titles before becoming the first English club to win the European Cup in 1968.",
+    "entities": []
   }
 ]
