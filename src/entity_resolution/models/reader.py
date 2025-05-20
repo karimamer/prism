@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from transformers import AutoModel, AutoConfig, AutoTokenizer
-from typing import List, Dict, Tuple, Optional, Union
+from typing import List, Dict, Tuple, Optional
 
 class EntityReader(nn.Module):
     """

@@ -5,7 +5,7 @@ import torch
 import faiss
 import numpy as np
 import logging
-from typing import Dict, List, Any, Tuple, Optional, Union
+from typing import Dict, List, Any, Tuple, Optional
 from pathlib import Path
 
 # Configure logging

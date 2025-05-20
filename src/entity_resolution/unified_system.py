@@ -4,13 +4,11 @@ import torch.nn.functional as F
 import os
 import json
 import logging
-from typing import List, Dict, Tuple, Optional, Union, Any
 
 from src.entity_resolution.models.retriever import EntityRetriever
 from src.entity_resolution.models.reader import EntityReader
 from src.entity_resolution.models.consensus import ConsensusModule
 from src.entity_resolution.database.vector_store import EntityKnowledgeBase
-from transformers import AutoTokenizer
 
 logging.basicConfig(
     level=logging.INFO,

@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import json
 import logging
-from typing import List, Dict, Any, Optional, Union, Tuple
+from typing import List, Dict, Any, Optional, Tuple
 
 # Configure logging
 logging.basicConfig(
