@@ -40,8 +40,8 @@ The system consists of three main components:
 git clone <repository-url>
 cd musnad
 
-# Install dependencies
-pip install -e .
+# Install dependencies with uv
+uv sync
 ```
 
 ## Quick Start
@@ -151,6 +151,20 @@ Options:
   --cache_dir, -c      Cache directory
   --verbose, -v        Verbose output
 ```
+## Development
+### Add a new dependency
+uv add package-name
+
+### Add a development dependency
+uv add --group dev package-name
+
+### Add from a specific index
+uv add --index-url https://download.pytorch.org/whl/cpu torch
+
+### Run linting
+### Run with ruff
+uv run ruff check .
+uv run ruff format .
 
 ## Project Structure
 
