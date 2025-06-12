@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 """
 Enhanced Entity Resolution System based on ReLiK, SpEL, UniRel, ATG, and OneNet.
-
-This script runs the unified entity resolution system, leveraging techniques from
-state-of-the-art papers to provide efficient, accurate, and flexible entity resolution.
 """
 
 import os
@@ -26,6 +23,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
 
 def parse_args():
     """Parse command line arguments"""
@@ -257,6 +255,7 @@ def main():
         logger.info(f"Peak GPU memory usage: {max_memory:.2f} MB")
 
     logger.info("Entity resolution completed successfully")
+
 
 if __name__ == "__main__":
     main()

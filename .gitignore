@@ -10,3 +10,10 @@ wheels/
 .venv
 
 sketch.md
+
+results.json
+test_input.txt
+test_output.json
+.ruff_cache
+.ropeproject
+cache/
