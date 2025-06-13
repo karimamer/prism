@@ -208,7 +208,7 @@ This implementation integrates techniques from:
 
 ## License
 
-MIT License
+GNU General Public License v3.0
 
 ## Citation
 If you use this system in your research, please cite the relevant papers and this implementation.
