@@ -1,5 +1,7 @@
 # prism: Entity Resolution System
 
+Prism is currently in its early experimental phase and should be considered unstable.
+
 A unified entity resolution system that combines techniques from state-of-the-art research papers including ReLiK, SpEL, UniRel, ATG, and OneNet to efficiently identify and link entities within text.
 
 ## Features
