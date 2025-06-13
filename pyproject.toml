@@ -1,5 +1,5 @@
 [project]
-name = "musnad"
+name = "prism"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -28,6 +28,4 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = [
-    "ruff>=0.11.5",
-]
+dev = ["ruff>=0.11.5"]

@@ -1,4 +1,4 @@
-# Musnad: Entity Resolution System
+# prism: Entity Resolution System
 
 A unified entity resolution system that combines techniques from state-of-the-art research papers including ReLiK, SpEL, UniRel, ATG, and OneNet to efficiently identify and link entities within text.
 
@@ -38,7 +38,7 @@ The system consists of three main components:
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd musnad
+cd prism
 
 # Install dependencies with uv
 uv sync
@@ -169,7 +169,7 @@ uv run ruff format .
 ## Project Structure
 
 ```
-musnad/
+prism/
 ├── src/
 │   └── entity_resolution/
 │       ├── models/
