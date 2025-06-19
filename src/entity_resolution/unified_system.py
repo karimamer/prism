@@ -54,8 +54,6 @@ class UnifiedEntityResolutionSystem(nn.Module):
         logger.info(f"Initializing retriever with model {config['retriever_model']}")
         self.retriever = EntityRetriever(
             model_name=config["retriever_model"],
-            entity_dim=config["entity_dim"],
-            shared_encoder=True,  # Parameter efficient
             use_faiss=True,       # Use FAISS for efficient retrieval
             top_k=config["top_k_candidates"]
         )

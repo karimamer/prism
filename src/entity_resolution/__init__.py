@@ -1,1 +1,7 @@
-from .unified_system import UnifiedEntityResolutionSystem
+try:
+    from .unified_system import UnifiedEntityResolutionSystem
+except ImportError as e:
+    # Handle missing dependencies gracefully
+    import warnings
+    warnings.warn(f"Could not import UnifiedEntityResolutionSystem: {e}")
+    UnifiedEntityResolutionSystem = None

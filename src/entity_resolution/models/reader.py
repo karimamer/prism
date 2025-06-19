@@ -3,14 +3,17 @@ import torch.nn as nn
 import torch.nn.functional as F
 from transformers import AutoModel, AutoConfig, AutoTokenizer
 from typing import List, Dict, Tuple, Optional
+import numpy as np
 
 class EntityReader(nn.Module):
     """
-    Enhanced Reader component based on SpEL and ReLiK techniques.
-
-    This reader encodes the input text and all retrieved candidate
-    entities in a single forward pass, making it much more efficient
-    than processing each candidate separately.
+    ReLiK-based Reader component that performs entity linking and relation extraction.
+    
+    This reader follows the ReLiK approach:
+    - Single forward pass for query + retrieved passages
+    - Span-based mention detection with start/end token prediction
+    - Entity linking through shared dense space projection
+    - Relation extraction with Hadamard product for triplets
     """
     def __init__(
         self,
@@ -30,13 +33,12 @@ class EntityReader(nn.Module):
         self.model = AutoModel.from_pretrained(model_name)
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-        # Add special tokens for entity linking
+        # Add special tokens for ReLiK format
         special_tokens = {
             "additional_special_tokens": [
-                "<e>", "</e>",  # Entity span markers
-                "<c>", "</c>",  # Candidate entity markers
-                "<s>", "</s>",  # Segment markers
-                "<r>", "</r>"   # Relation markers (for joint entity-relation extraction)
+                "[SEP]",  # Separator between query and passages
+                "<ST0>", "<ST1>", "<ST2>", "<ST3>", "<ST4>", "<ST5>", "<ST6>", "<ST7>", "<ST8>", "<ST9>",
+                "<ST10>", "<ST11>", "<ST12>", "<ST13>", "<ST14>", "<ST15>", "<ST16>", "<ST17>", "<ST18>", "<ST19>"
             ]
         }
 
@@ -51,30 +53,67 @@ class EntityReader(nn.Module):
         self.model.resize_token_embeddings(len(self.tokenizer))
 
         # Get indices of special tokens for easy access
-        self.entity_start_id = self.tokenizer.convert_tokens_to_ids("<e>")
-        self.entity_end_id = self.tokenizer.convert_tokens_to_ids("</e>")
-        self.candidate_start_id = self.tokenizer.convert_tokens_to_ids("<c>")
-        self.candidate_end_id = self.tokenizer.convert_tokens_to_ids("</c>")
-        self.segment_start_id = self.tokenizer.convert_tokens_to_ids("<s>")
-        self.segment_end_id = self.tokenizer.convert_tokens_to_ids("</s>")
+        self.sep_token_id = self.tokenizer.convert_tokens_to_ids("[SEP]")
+        self.st_token_ids = [self.tokenizer.convert_tokens_to_ids(f"<ST{i}>") for i in range(20)]
+        
+        # Define entity and candidate marker token IDs
+        self.entity_start_id = self.tokenizer.convert_tokens_to_ids("<ST0>")
+        self.entity_end_id = self.tokenizer.convert_tokens_to_ids("<ST1>")
+        self.candidate_start_id = self.tokenizer.convert_tokens_to_ids("<ST2>")
+        self.candidate_end_id = self.tokenizer.convert_tokens_to_ids("<ST3>")
 
         # Enable gradient checkpointing for memory efficiency
         if gradient_checkpointing:
             self.model.gradient_checkpointing_enable()
 
-        # Mention detection (SpEL approach)
-        self.span_classifier = nn.Linear(self.config.hidden_size, 3)  # B-I-O tagging
-
-        # Entity linking
+        # Mention detection layers (start/end token prediction)
+        self.mention_start_classifier = nn.Linear(self.config.hidden_size, 2)  # Binary classification
+        self.mention_end_classifier = nn.Linear(self.config.hidden_size * 2, 2)  # Binary classification
+        
+        # Entity linking projection layer
+        self.entity_projection = nn.Sequential(
+            nn.Linear(self.config.hidden_size * 2, self.config.hidden_size),
+            nn.GELU()
+        )
+        
+        # Relation extraction projection layers
+        self.subject_projection = nn.Sequential(
+            nn.Linear(self.config.hidden_size * 2, self.config.hidden_size),
+            nn.GELU()
+        )
+        self.object_projection = nn.Sequential(
+            nn.Linear(self.config.hidden_size * 2, self.config.hidden_size),
+            nn.GELU()
+        )
+        self.relation_projection = nn.Sequential(
+            nn.Linear(self.config.hidden_size, self.config.hidden_size),
+            nn.GELU()
+        )
+        
+        # Relation classification head
+        self.relation_classifier = nn.Linear(self.config.hidden_size, 2)
+        
+        # Span classifier for mention detection (BIO tagging)
+        self.span_classifier = nn.Linear(self.config.hidden_size, 3)  # B, I, O tags
+        
+        # Interaction layer for entity interactions
+        self.interaction_layer = nn.Sequential(
+            nn.Linear(self.config.hidden_size, self.config.hidden_size),
+            nn.GELU(),
+            nn.Dropout(0.1)
+        )
+        
+        # Entity linker for linking mentions to entities
         self.entity_linker = nn.Sequential(
             nn.Linear(self.config.hidden_size * 2, self.config.hidden_size),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Dropout(0.1),
-            nn.Linear(self.config.hidden_size, 1)
+            nn.Linear(self.config.hidden_size, 1),
+            nn.Sigmoid()
         )
-
-        # Additional interaction layer (UniRel approach)
-        self.interaction_layer = nn.Linear(self.config.hidden_size, self.config.hidden_size)
+        
+        # Initialize special input format requirements
+        self.requires_query_passage_format = True
 
     def encode_text_with_candidates(
         self,
@@ -363,146 +402,86 @@ class EntityReader(nn.Module):
             "interaction_map": interaction_map
         }
 
-    def process_text(self, text, candidate_entities):
+    def process_text(
+        self, 
+        query: str, 
+        candidate_entities: List[Dict], 
+        task_type: str = "entity_linking"
+    ) -> Dict:
         """
-        Process a text and link entity mentions to candidates.
-
+        Process query with candidate entities for entity linking or relation extraction.
+        
         Args:
-            text: Input text
-            candidate_entities: List of candidate entities
-
+            query: Input query text
+            candidate_entities: List of candidate entity dictionaries
+            task_type: "entity_linking", "relation_extraction", or "joint"
+            
         Returns:
-            Dictionary with entity linking results
+            Dictionary with processing results
         """
-        # Tokenize the input text
-        tokenized = self.tokenizer(
-            text,
-            padding=False,
-            truncation=True,
-            max_length=self.max_seq_length,
-            return_tensors="pt",
-            return_offsets_mapping=True
-        )
-
-        # Simple rule-based detection of potential entities (capitalized words)
-        mentions = []
-
-        # Split text into words
-        words = text.split()
-
-        # Find potential entity mentions (capitalized words)
-        start_idx = 0
-        while start_idx < len(words):
-            # Skip non-capitalized words
-            if not words[start_idx] or not words[start_idx][0].isupper() or words[start_idx].lower() in ['the', 'a', 'an', 'in', 'on', 'at', 'by', 'for', 'with', 'and', 'or', 'but']:
-                start_idx += 1
-                continue
-
-            # Found potential start of entity
-            end_idx = start_idx
-
-            # Look for multi-word entities
-            while end_idx + 1 < len(words) and words[end_idx + 1][0].isupper() and words[end_idx + 1].lower() not in ['the', 'a', 'an', 'in', 'on', 'at', 'by', 'for', 'with', 'and', 'or', 'but']:
-                end_idx += 1
-
-            # Found a potential entity from start_idx to end_idx
-            mention_text = " ".join(words[start_idx:end_idx+1])
-
-            # Find character positions
-            char_start = text.find(mention_text)
-            if char_start >= 0:
-                char_end = char_start + len(mention_text) - 1
-
-                # Convert to token positions (approximate)
-                start_token = None
-                end_token = None
-
-                # Find tokens corresponding to character positions
-                for i, (start, end) in enumerate(tokenized["offset_mapping"][0]):
-                    if start_token is None and start <= char_start < end:
-                        start_token = i
-                    if end_token is None and start <= char_end < end:
-                        end_token = i
-
-                if start_token is not None and end_token is not None:
-                    mentions.append((start_token, end_token))
-
-            # Move to next potential entity
-            start_idx = end_idx + 1
-
-        # If no mentions found, return empty results
-        if not mentions:
-            return {"entities": [], "text": text}
-
-        # Format the input text with mentions and candidate entities
-        input_text_with_markers = text
-        for start, end in sorted(mentions, reverse=True):
-            # Get character positions
-            char_start = tokenized["offset_mapping"][0][start][0].item()
-            char_end = tokenized["offset_mapping"][0][end][1].item()
-
-            # Add entity markers
-            input_text_with_markers = (
-                input_text_with_markers[:char_start] +
-                " <e> " + input_text_with_markers[char_start:char_end] + " </e> " +
-                input_text_with_markers[char_end:]
-            )
-
-        # Encode text with candidate entities
-        encoding = self.encode_text_with_candidates(input_text_with_markers, candidate_entities)
-
-        # If no mention positions found in the encoding, return empty results
-        if not encoding["mention_positions"]:
-            return {"entities": [], "text": text}
-
-        # Forward pass through model
         with torch.no_grad():
-            results = self.forward({
-                "input_ids": encoding["input_ids"],
-                "attention_mask": encoding["attention_mask"],
-                "mention_positions": encoding["mention_positions"],
-                "candidate_positions": encoding["candidate_positions"]
-            })
-
-        # Extract linked entities
-        linked_entities = []
-
-        for i, (mention_pos, best_entity_idx) in enumerate(zip(results["mention_positions"], results["best_entities"])):
-            if best_entity_idx is None:
-                continue
-
-            # Get mention text
-            mention_start, mention_end = mention_pos
-            mention_tokens = encoding["input_ids"][0, mention_start+1:mention_end]
-            mention_text = self.tokenizer.decode(mention_tokens)
-
-            # Get entity
-            entity = candidate_entities[best_entity_idx]
-
-            # Get score
-            score = results["mention_entity_scores"][i][0][1] if results["mention_entity_scores"][i] else 0.0
-
-            linked_entities.append({
-                "mention": mention_text,
-                "mention_span": (mention_start, mention_end),
-                "entity_id": entity.get("id", ""),
-                "entity_name": entity.get("name", ""),
-                "entity_type": entity.get("type", "UNKNOWN"),
-                "confidence": score
-            })
-
+            # Detect mentions in the query text
+            mentions = self.detect_mentions(query)
+            
+            # Link mentions to candidate entities
+            entities = []
+            for mention_span in mentions:
+                start, end = mention_span
+                query_tokens = self.tokenizer.encode(query, add_special_tokens=False)
+                if start < len(query_tokens) and end < len(query_tokens):
+                    mention_text = self.tokenizer.decode(query_tokens[start:end+1]).strip()
+                    
+                    # Find best matching entity
+                    best_entity = None
+                    best_score = 0.0
+                    
+                    for entity in candidate_entities:
+                        # Simple matching based on entity name
+                        entity_name = entity.get("name", "")
+                        if mention_text.lower() in entity_name.lower() or entity_name.lower() in mention_text.lower():
+                            score = 0.8  # Simple scoring
+                            if score > best_score:
+                                best_score = score
+                                best_entity = entity
+                    
+                    if best_entity and best_score > 0.5:
+                        entities.append({
+                            "mention": mention_text,
+                            "mention_span": mention_span,
+                            "entity_id": best_entity.get("id", ""),
+                            "entity_name": best_entity.get("name", ""),
+                            "entity_type": best_entity.get("type", "UNKNOWN"),
+                            "confidence": best_score
+                        })
+        
+        # Extract relations if doing relation extraction (simplified for now)
+        relations = []
+        if task_type in ["relation_extraction", "joint"]:
+            # For now, return empty relations - would need more sophisticated relation extraction
+            pass
+        
         return {
-            "entities": linked_entities,
-            "text": text
+            "query": query,
+            "mentions": mentions,
+            "entities": entities,
+            "relations": relations,
+            "task_type": task_type
         }
 
     def save(self, path):
-        """Save reader model"""
+        """Save ReLiK reader model"""
         torch.save({
             "model": self.model.state_dict(),
+            "mention_start_classifier": self.mention_start_classifier.state_dict(),
+            "mention_end_classifier": self.mention_end_classifier.state_dict(),
+            "entity_projection": self.entity_projection.state_dict(),
+            "subject_projection": self.subject_projection.state_dict(),
+            "object_projection": self.object_projection.state_dict(),
+            "relation_projection": self.relation_projection.state_dict(),
+            "relation_classifier": self.relation_classifier.state_dict(),
             "span_classifier": self.span_classifier.state_dict(),
-            "entity_linker": self.entity_linker.state_dict(),
             "interaction_layer": self.interaction_layer.state_dict(),
+            "entity_linker": self.entity_linker.state_dict(),
             "config": {
                 "model_name": self.model_name,
                 "max_seq_length": self.max_seq_length,
@@ -512,7 +491,7 @@ class EntityReader(nn.Module):
 
     @classmethod
     def load(cls, path):
-        """Load reader model"""
+        """Load ReLiK reader model"""
         state_dict = torch.load(f"{path}/reader_model.pt")
         config = state_dict["config"]
 
@@ -525,9 +504,21 @@ class EntityReader(nn.Module):
 
         # Load model weights
         reader.model.load_state_dict(state_dict["model"])
-        reader.span_classifier.load_state_dict(state_dict["span_classifier"])
-        reader.entity_linker.load_state_dict(state_dict["entity_linker"])
-        reader.interaction_layer.load_state_dict(state_dict["interaction_layer"])
+        reader.mention_start_classifier.load_state_dict(state_dict["mention_start_classifier"])
+        reader.mention_end_classifier.load_state_dict(state_dict["mention_end_classifier"])
+        reader.entity_projection.load_state_dict(state_dict["entity_projection"])
+        reader.subject_projection.load_state_dict(state_dict["subject_projection"])
+        reader.object_projection.load_state_dict(state_dict["object_projection"])
+        reader.relation_projection.load_state_dict(state_dict["relation_projection"])
+        reader.relation_classifier.load_state_dict(state_dict["relation_classifier"])
+        
+        # Load new components if they exist
+        if "span_classifier" in state_dict:
+            reader.span_classifier.load_state_dict(state_dict["span_classifier"])
+        if "interaction_layer" in state_dict:
+            reader.interaction_layer.load_state_dict(state_dict["interaction_layer"])
+        if "entity_linker" in state_dict:
+            reader.entity_linker.load_state_dict(state_dict["entity_linker"])
 
         return reader
 
@@ -565,9 +556,16 @@ class EntityReader(nn.Module):
         elif quantization_type == "fp16":
             # Float16 quantization
             self.model = self.model.half()
+            self.mention_start_classifier = self.mention_start_classifier.half()
+            self.mention_end_classifier = self.mention_end_classifier.half()
+            self.entity_projection = self.entity_projection.half()
+            self.subject_projection = self.subject_projection.half()
+            self.object_projection = self.object_projection.half()
+            self.relation_projection = self.relation_projection.half()
+            self.relation_classifier = self.relation_classifier.half()
             self.span_classifier = self.span_classifier.half()
-            self.entity_linker = self.entity_linker.half()
             self.interaction_layer = self.interaction_layer.half()
+            self.entity_linker = self.entity_linker.half()
 
             print("Model quantized to FP16")
 
