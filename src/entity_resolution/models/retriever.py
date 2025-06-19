@@ -7,35 +7,23 @@ import numpy as np
 
 class EntityRetriever(nn.Module):
     """
-    ReLiK-style dense retrieval component with bi-encoder architecture.
+    Dense Passage Retrieval (DPR) style retriever following ReLiK paradigm.
 
-    This retriever uses two encoders: one for query (input text) and one for entities.
-    It efficiently retrieves the most relevant entities for a given text using FAISS.
+    Uses a single shared Transformer encoder to produce dense representations
+    for both queries and passages (entities/relations), following the DPR approach
+    where EQ(q) = Retriever(q) and EP(p) = Retriever(p) use the same encoder.
     """
     def __init__(
         self,
         model_name="microsoft/deberta-v3-small",
-        entity_dim=256,
-        shared_encoder=True,
         use_faiss=True,
         top_k=100
     ):
         super().__init__()
 
-        # Initialize text encoder
-        self.text_encoder = AutoModel.from_pretrained(model_name)
-
-        # Entity encoder can be shared with text encoder (parameter efficient)
-        # or separate (more expressive but more parameters)
-        if shared_encoder:
-            self.entity_encoder = self.text_encoder
-        else:
-            self.entity_encoder = AutoModel.from_pretrained(model_name)
-
-        # Projection layers for dimension reduction and alignment
-        hidden_size = self.text_encoder.config.hidden_size
-        self.text_projection = nn.Linear(hidden_size, entity_dim)
-        self.entity_projection = nn.Linear(hidden_size, entity_dim)
+        # Single shared encoder for both queries and passages (DPR paradigm)
+        self.encoder = AutoModel.from_pretrained(model_name)
+        self.hidden_size = self.encoder.config.hidden_size
 
         # Tokenizer for processing text
         self.tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
@@ -49,62 +37,42 @@ class EntityRetriever(nn.Module):
         self.entity_data = {}
         self.top_k = top_k
 
-    def encode_text(self, text_ids, attention_mask):
-        """Encode input text into a dense vector"""
-        # Get text embeddings from encoder
-        outputs = self.text_encoder(
-            input_ids=text_ids,
+    def encode(self, input_ids, attention_mask):
+        """Encode input text/passage into dense vector using shared encoder (DPR style)"""
+        # Get embeddings from shared encoder
+        outputs = self.encoder(
+            input_ids=input_ids,
             attention_mask=attention_mask
         )
 
-        # Use CLS token or mean pooling
-        if hasattr(outputs, 'pooler_output'):
-            text_emb = outputs.pooler_output
-        else:
-            # Mean pooling
-            token_embeddings = outputs.last_hidden_state
-            input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
-            text_emb = torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
+        # Use average of token encodings as specified in the paper
+        token_embeddings = outputs.last_hidden_state
+        input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
 
-        # Project to common space
-        text_emb = self.text_projection(text_emb)
+        # Average pooling over all tokens (as specified: "average of encodings for tokens")
+        embeddings = torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
 
-        # Normalize embeddings (important for cosine similarity)
-        text_emb = F.normalize(text_emb, p=2, dim=1)
-        return text_emb
+        return embeddings
 
-    def encode_entity(self, entity_text):
-        """Encode entity text into a dense vector"""
-        # Tokenize entity text
-        entity_inputs = self.tokenizer(
-            entity_text,
+    def encode_passages(self, passage_texts):
+        """Encode passage texts (entities/relations) using shared encoder"""
+        # Tokenize passage texts
+        inputs = self.tokenizer(
+            passage_texts,
             padding=True,
             truncation=True,
             return_tensors="pt",
             max_length=128
         )
 
-        # Get entity embeddings from encoder
-        outputs = self.entity_encoder(
-            input_ids=entity_inputs["input_ids"].to(self.text_encoder.device),
-            attention_mask=entity_inputs["attention_mask"].to(self.text_encoder.device)
-        )
+        # Move to same device as encoder
+        inputs = {k: v.to(self.encoder.device) for k, v in inputs.items()}
 
-        # Use CLS token or mean pooling
-        if hasattr(outputs, 'pooler_output'):
-            entity_emb = outputs.pooler_output
-        else:
-            # Mean pooling
-            token_embeddings = outputs.last_hidden_state
-            input_mask_expanded = entity_inputs["attention_mask"].unsqueeze(-1).expand(token_embeddings.size()).float()
-            entity_emb = torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
+        # Encode using shared encoder
+        with torch.no_grad():
+            embeddings = self.encode(inputs["input_ids"], inputs["attention_mask"])
 
-        # Project to common space
-        entity_emb = self.entity_projection(entity_emb)
-
-        # Normalize embeddings
-        entity_emb = F.normalize(entity_emb, p=2, dim=1)
-        return entity_emb
+        return embeddings
 
     def build_index(self, entity_dict):
         """
@@ -128,8 +96,7 @@ class EntityRetriever(nn.Module):
 
         for i in range(0, len(entity_texts), batch_size):
             batch_texts = entity_texts[i:i+batch_size]
-            with torch.no_grad():
-                batch_embeddings = self.encode_entity(batch_texts).detach().cpu().numpy()
+            batch_embeddings = self.encode_passages(batch_texts).detach().cpu().numpy()
             all_embeddings.append(batch_embeddings)
 
         entity_embeddings = np.vstack(all_embeddings)
@@ -169,9 +136,9 @@ class EntityRetriever(nn.Module):
             print("No entity index built yet!")
             return []
 
-        # Encode query
+        # Encode query using shared encoder
         with torch.no_grad():
-            query_emb = self.encode_text(text_ids, attention_mask).detach().cpu().numpy()
+            query_emb = self.encode(text_ids, attention_mask).detach().cpu().numpy()
 
         # Search index
         scores, indices = self.index.search(query_emb, top_k)
@@ -205,71 +172,146 @@ class EntityRetriever(nn.Module):
         Returns:
             Dictionary with text embeddings and entity embeddings
         """
-        # Encode text
-        text_emb = self.encode_text(text_ids, attention_mask)
+        # Encode query using shared encoder
+        query_emb = self.encode(text_ids, attention_mask)
 
-        # Encode entities if provided
-        entity_emb = None
+        # Encode passages if provided
+        passage_emb = None
         if entity_texts is not None:
-            entity_emb = self.encode_entity(entity_texts)
+            # Tokenize and encode passages
+            entity_inputs = self.tokenizer(
+                entity_texts,
+                padding=True,
+                truncation=True,
+                return_tensors="pt",
+                max_length=128
+            )
+            entity_inputs = {k: v.to(self.encoder.device) for k, v in entity_inputs.items()}
+            passage_emb = self.encode(entity_inputs["input_ids"], entity_inputs["attention_mask"])
         elif entity_ids is not None:
             # Look up entity texts from IDs
             entity_texts = [
                 f"{self.entity_data[eid]['name']} - {self.entity_data[eid]['description'][:200]}"
                 for eid in entity_ids
             ]
-            entity_emb = self.encode_entity(entity_texts)
+            passage_emb = self.encode_passages(entity_texts)
 
         return {
-            "text_embeddings": text_emb,
-            "entity_embeddings": entity_emb
+            "query_embeddings": query_emb,
+            "passage_embeddings": passage_emb
         }
 
-    def compute_similarity(self, text_emb, entity_emb):
-        """Compute similarity matrix between text and entity embeddings"""
-        # Cosine similarity
-        sim = torch.matmul(text_emb, entity_emb.transpose(0, 1))
+    def compute_similarity(self, query_emb, passage_emb):
+        """Compute similarity using dot product of contextualized representations (DPR style)"""
+        # sim(q, p) = EQ(q)^T * EP(p) where both use same encoder
+        sim = torch.matmul(query_emb, passage_emb.transpose(0, 1))
         return sim
 
-    def contrastive_loss(self, text_emb, entity_emb, positive_pairs, temperature=0.07):
+    def multi_label_nce_loss(self, query_emb, passage_emb, positive_passage_mask, hard_negatives=None):
         """
-        Compute contrastive loss for retriever training.
+        Multi-label Noise Contrastive Estimation loss as described in the paper.
+
+        LRetriever = -log(sum over p+ in Dp(q) of exp(sim(q,p+)) /
+                         (exp(sim(q,p+)) + sum over p- in P-q of exp(sim(q,p-))))
 
         Args:
-            text_emb: Text embeddings [batch_size, embed_dim]
-            entity_emb: Entity embeddings [batch_size, embed_dim]
-            positive_pairs: Indices of positive text-entity pairs
-            temperature: Temperature for softmax
+            query_emb: Query embeddings [batch_size, embed_dim]
+            passage_emb: Passage embeddings [num_passages, embed_dim]
+            positive_passage_mask: Binary mask [batch_size, num_passages] indicating positive passages
+            hard_negatives: Optional hard negative passages for mining
 
         Returns:
-            Contrastive loss
+            Multi-label NCE loss
         """
-        # Compute similarity matrix
-        similarity = self.compute_similarity(text_emb, entity_emb) / temperature
+        # Compute similarity matrix sim(q,p) = EQ(q)^T * EP(p)
+        similarity = self.compute_similarity(query_emb, passage_emb)
 
-        # Create labels (diagonal is positive pairs)
-        labels = torch.zeros(similarity.size(0), dtype=torch.long, device=similarity.device)
-        for i, pos_idx in enumerate(positive_pairs):
-            labels[i] = pos_idx
+        batch_size = query_emb.size(0)
+        total_loss = 0.0
 
-        # Compute cross-entropy loss
-        loss = F.cross_entropy(similarity, labels)
+        for i in range(batch_size):
+            # Get positive passages for query i
+            pos_mask = positive_passage_mask[i]
+            pos_indices = torch.where(pos_mask)[0]
 
-        return loss
+            if len(pos_indices) == 0:
+                continue
+
+            # Get similarity scores for query i
+            query_scores = similarity[i]  # [num_passages]
+
+            # Positive scores
+            pos_scores = query_scores[pos_indices]  # [num_positives]
+
+            # Negative scores (all other passages + in-batch negatives)
+            neg_mask = ~pos_mask
+            neg_scores = query_scores[neg_mask]  # [num_negatives]
+
+            # Add hard negatives if provided
+            if hard_negatives is not None and i < len(hard_negatives):
+                hard_neg_scores = hard_negatives[i]
+                neg_scores = torch.cat([neg_scores, hard_neg_scores])
+
+            # Compute multi-label NCE loss for this query
+            # Numerator: sum of exp(positive scores)
+            pos_exp = torch.exp(pos_scores)
+            numerator = torch.sum(pos_exp)
+
+            # Denominator: numerator + sum of exp(negative scores)
+            neg_exp = torch.exp(neg_scores)
+            denominator = numerator + torch.sum(neg_exp)
+
+            # Loss for this query: -log(numerator / denominator)
+            query_loss = -torch.log(numerator / denominator + 1e-8)
+            total_loss += query_loss
+
+        return total_loss / batch_size
+
+    def mine_hard_negatives(self, query_emb, passage_emb, positive_mask, top_k_negatives=10):
+        """
+        Mine hard negatives by retrieving highest-scoring incorrect passages.
+
+        Args:
+            query_emb: Query embeddings [batch_size, embed_dim]
+            passage_emb: Passage embeddings [num_passages, embed_dim]
+            positive_mask: Binary mask [batch_size, num_passages] indicating positive passages
+            top_k_negatives: Number of hard negatives to mine per query
+
+        Returns:
+            List of hard negative scores for each query
+        """
+        # Compute similarity scores
+        similarity = self.compute_similarity(query_emb, passage_emb)
+
+        hard_negatives = []
+
+        for i in range(query_emb.size(0)):
+            # Get negative passages (non-positive)
+            neg_mask = ~positive_mask[i]
+
+            if neg_mask.sum() == 0:
+                hard_negatives.append(torch.tensor([]))
+                continue
+
+            # Get scores for negative passages
+            neg_scores = similarity[i][neg_mask]
+
+            # Get top-k highest scoring negatives (hardest negatives)
+            top_k = min(top_k_negatives, len(neg_scores))
+            hard_neg_scores, _ = torch.topk(neg_scores, top_k)
+
+            hard_negatives.append(hard_neg_scores)
+
+        return hard_negatives
 
     def save(self, path):
         """Save retriever model and index"""
         # Save model state
         torch.save({
-            "text_encoder": self.text_encoder.state_dict(),
-            "entity_encoder": self.entity_encoder.state_dict() if not self.shared_encoder else None,
-            "text_projection": self.text_projection.state_dict(),
-            "entity_projection": self.entity_projection.state_dict(),
+            "encoder": self.encoder.state_dict(),
             "entity_ids": self.entity_ids,
             "config": {
-                "model_name": self.text_encoder.config.name_or_path,
-                "entity_dim": self.text_projection.out_features,
-                "shared_encoder": self.shared_encoder,
+                "model_name": self.encoder.config.name_or_path,
                 "top_k": self.top_k
             }
         }, f"{path}/retriever_model.pt")
@@ -291,17 +333,11 @@ class EntityRetriever(nn.Module):
         # Create model instance
         retriever = cls(
             model_name=config["model_name"],
-            entity_dim=config["entity_dim"],
-            shared_encoder=config["shared_encoder"],
             top_k=config["top_k"]
         )
 
         # Load model weights
-        retriever.text_encoder.load_state_dict(state_dict["text_encoder"])
-        if not config["shared_encoder"] and state_dict["entity_encoder"] is not None:
-            retriever.entity_encoder.load_state_dict(state_dict["entity_encoder"])
-        retriever.text_projection.load_state_dict(state_dict["text_projection"])
-        retriever.entity_projection.load_state_dict(state_dict["entity_projection"])
+        retriever.encoder.load_state_dict(state_dict["encoder"])
 
         # Load entity data
         retriever.entity_ids = state_dict["entity_ids"]
