@@ -50,7 +50,7 @@ def simple_config():
         "reader_model": "microsoft/deberta-v3-small",  # Use small model for testing
         "top_k_candidates": 10,
         "consensus_threshold": 0.6,
-        "max_length": 128,
+        "max_seq_length": 128,  # Changed from max_length to match SystemConfig
         "batch_size": 2,
     }
 
