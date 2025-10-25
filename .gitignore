@@ -1,19 +1,91 @@
 # Python-generated files
 __pycache__/
 *.py[oc]
+*.pyo
+*.pyd
 build/
 dist/
 wheels/
 *.egg-info
+*.egg
+.eggs/
 
 # Virtual environments
-.venv
+.venv/
+venv/
+ENV/
+env/
+.python-version
 
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.cover
+.hypothesis/
+.tox/
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Linting and formatting
+.ruff_cache/
+.ropeproject/
+
+# Project-specific
 sketch.md
-
 results.json
 test_input.txt
 test_output.json
-.ruff_cache
-.ropeproject
 cache/
+*.log
+
+# ML Models (optional - comment out if you want to track models)
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+models/
+
+# Data files (optional - adjust based on needs)
+data/
+*.csv
+*.parquet
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+*.ipynb
+
+# Documentation builds
+docs/_build/
+docs/_static/
+docs/_templates/
+
+# OS-specific
+Thumbs.db
+.DS_Store
+
+# Environment variables
+.env
+.env.local
+
+# Benchmarks
+.benchmarks/
+benchmark.json
+
+# Security
+bandit-report.json

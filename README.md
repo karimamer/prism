@@ -204,9 +204,6 @@ This implementation integrates techniques from:
 - **ATG**: Autoregressive text-to-graph generation
 - **OneNet**: End-to-end entity resolution
 
-## License
-
-MIT License
 
 ## Citation
 If you use this system in your research, please cite the relevant papers and this implementation.
