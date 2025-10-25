@@ -1,5 +1,7 @@
 # prism: Entity Resolution System
 
+Prism is currently in its early experimental phase and should be considered unstable.
+
 A unified entity resolution system that combines techniques from state-of-the-art research papers including ReLiK, SpEL, UniRel, ATG, and OneNet to efficiently identify and link entities within text.
 
 ## Features
@@ -204,6 +206,9 @@ This implementation integrates techniques from:
 - **ATG**: Autoregressive text-to-graph generation
 - **OneNet**: End-to-end entity resolution
 
+## License
+
+GNU General Public License v3.0
 
 ## Citation
 If you use this system in your research, please cite the relevant papers and this implementation.
