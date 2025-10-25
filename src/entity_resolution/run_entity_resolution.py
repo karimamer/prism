@@ -3,12 +3,13 @@
 Enhanced Entity Resolution System based on ReLiK, SpEL, UniRel, ATG, and OneNet.
 """
 
-import os
-import sys
 import argparse
 import json
 import logging
+import os
+import sys
 import time
+
 import torch
 
 # Add src to Python path
@@ -19,69 +20,83 @@ from src.entity_resolution.unified_system import UnifiedEntityResolutionSystem
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
 
 def parse_args():
     """Parse command line arguments"""
-    parser = argparse.ArgumentParser(
-        description="Enhanced Entity Resolution System"
-    )
+    parser = argparse.ArgumentParser(description="Enhanced Entity Resolution System")
 
     # Input/output options
-    parser.add_argument("--input", "-i", type=str, required=True,
-                       help="Input file with text to process")
-    parser.add_argument("--output", "-o", type=str, required=True,
-                       help="Output file for resolved entities")
-    parser.add_argument("--entities", "-e", type=str, default=None,
-                       help="File with entity data (JSON or CSV)")
-    parser.add_argument("--format", "-f", type=str, default="json",
-                       choices=["json", "csv", "txt"],
-                       help="Output format")
+    parser.add_argument(
+        "--input", "-i", type=str, required=True, help="Input file with text to process"
+    )
+    parser.add_argument(
+        "--output", "-o", type=str, required=True, help="Output file for resolved entities"
+    )
+    parser.add_argument(
+        "--entities", "-e", type=str, default=None, help="File with entity data (JSON or CSV)"
+    )
+    parser.add_argument(
+        "--format",
+        "-f",
+        type=str,
+        default="json",
+        choices=["json", "csv", "txt"],
+        help="Output format",
+    )
 
     # Model options
-    parser.add_argument("--model_path", "-m", type=str, default=None,
-                       help="Path to pretrained model")
-    parser.add_argument("--retriever", "-r", type=str,
-                       default="microsoft/deberta-v3-small",
-                       help="Retriever model name")
-    parser.add_argument("--reader", "-d", type=str,
-                       default="microsoft/deberta-v3-base",
-                       help="Reader model name")
-    parser.add_argument("--quantization", "-q", type=str,
-                       default=None, choices=[None, "int8", "fp16"],
-                       help="Quantization type for faster inference")
+    parser.add_argument(
+        "--model_path", "-m", type=str, default=None, help="Path to pretrained model"
+    )
+    parser.add_argument(
+        "--retriever",
+        "-r",
+        type=str,
+        default="microsoft/deberta-v3-small",
+        help="Retriever model name",
+    )
+    parser.add_argument(
+        "--reader", "-d", type=str, default="microsoft/deberta-v3-base", help="Reader model name"
+    )
+    parser.add_argument(
+        "--quantization",
+        "-q",
+        type=str,
+        default=None,
+        choices=[None, "int8", "fp16"],
+        help="Quantization type for faster inference",
+    )
 
     # Processing options
-    parser.add_argument("--batch_size", "-b", type=int, default=8,
-                       help="Batch size for processing")
-    parser.add_argument("--top_k", "-k", type=int, default=50,
-                       help="Number of top entities to retrieve")
-    parser.add_argument("--threshold", "-t", type=float, default=0.6,
-                       help="Confidence threshold for entity linking")
-    parser.add_argument("--max_length", "-l", type=int, default=512,
-                       help="Maximum sequence length")
+    parser.add_argument("--batch_size", "-b", type=int, default=8, help="Batch size for processing")
+    parser.add_argument(
+        "--top_k", "-k", type=int, default=50, help="Number of top entities to retrieve"
+    )
+    parser.add_argument(
+        "--threshold", "-t", type=float, default=0.6, help="Confidence threshold for entity linking"
+    )
+    parser.add_argument("--max_length", "-l", type=int, default=512, help="Maximum sequence length")
 
     # Other options
-    parser.add_argument("--cache_dir", "-c", type=str, default="./cache",
-                       help="Cache directory")
-    parser.add_argument("--index_path", "-p", type=str, default="./entity_index",
-                       help="Entity index path")
-    parser.add_argument("--profile", action="store_true",
-                       help="Profile performance")
-    parser.add_argument("--verbose", "-v", action="store_true",
-                       help="Verbose output")
+    parser.add_argument("--cache_dir", "-c", type=str, default="./cache", help="Cache directory")
+    parser.add_argument(
+        "--index_path", "-p", type=str, default="./entity_index", help="Entity index path"
+    )
+    parser.add_argument("--profile", action="store_true", help="Profile performance")
+    parser.add_argument("--verbose", "-v", action="store_true", help="Verbose output")
 
     return parser.parse_args()
 
+
 def load_input_text(input_file):
     """Load input text from file"""
-    with open(input_file, 'r', encoding='utf-8') as f:
+    with open(input_file, encoding="utf-8") as f:
         # Check if file is JSON
-        if input_file.endswith('.json'):
+        if input_file.endswith(".json"):
             try:
                 data = json.load(f)
 
@@ -92,18 +107,18 @@ def load_input_text(input_file):
                         texts = data
                     elif all(isinstance(item, dict) for item in data):
                         # List of dictionaries
-                        texts = [item.get('text', '') for item in data]
+                        texts = [item.get("text", "") for item in data]
                     else:
                         # Unknown format
                         raise ValueError("Unsupported JSON format")
                 elif isinstance(data, dict):
                     # Dictionary
-                    if 'texts' in data and isinstance(data['texts'], list):
+                    if "texts" in data and isinstance(data["texts"], list):
                         # List of texts
-                        texts = data['texts']
-                    elif 'text' in data:
+                        texts = data["texts"]
+                    elif "text" in data:
                         # Single text
-                        texts = [data['text']]
+                        texts = [data["text"]]
                     else:
                         # Unknown format
                         raise ValueError("Unsupported JSON format")
@@ -120,9 +135,10 @@ def load_input_text(input_file):
         lines = f.readlines()
         return [line.strip() for line in lines if line.strip()]
 
+
 def save_output(results, output_file, format="json"):
     """Save output results to file"""
-    with open(output_file, 'w', encoding='utf-8') as f:
+    with open(output_file, "w", encoding="utf-8") as f:
         if format == "json":
             # JSON format
             json.dump(results, f, indent=2)
@@ -133,39 +149,51 @@ def save_output(results, output_file, format="json"):
             # Extract all entities
             all_entities = []
             for result in results:
-                text = result['text']
-                for entity in result['entities']:
+                text = result["text"]
+                for entity in result["entities"]:
                     entity_copy = entity.copy()
-                    entity_copy['text'] = text
+                    entity_copy["text"] = text
                     all_entities.append(entity_copy)
 
             # Write CSV header
-            writer = csv.DictWriter(f, fieldnames=[
-                'text', 'mention', 'entity_id', 'entity_name',
-                'entity_type', 'confidence'
-            ])
+            writer = csv.DictWriter(
+                f,
+                fieldnames=[
+                    "text",
+                    "mention",
+                    "entity_id",
+                    "entity_name",
+                    "entity_type",
+                    "confidence",
+                ],
+            )
             writer.writeheader()
 
             # Write entities
             for entity in all_entities:
-                writer.writerow({
-                    'text': entity['text'],
-                    'mention': entity['mention'],
-                    'entity_id': entity['entity_id'],
-                    'entity_name': entity['entity_name'],
-                    'entity_type': entity['entity_type'],
-                    'confidence': entity['confidence']
-                })
+                writer.writerow(
+                    {
+                        "text": entity["text"],
+                        "mention": entity["mention"],
+                        "entity_id": entity["entity_id"],
+                        "entity_name": entity["entity_name"],
+                        "entity_type": entity["entity_type"],
+                        "confidence": entity["confidence"],
+                    }
+                )
         else:
             # Text format
             for result in results:
                 f.write(f"TEXT: {result['text']}\n")
                 f.write("ENTITIES:\n")
 
-                for entity in result['entities']:
-                    f.write(f"  - {entity['mention']} ({entity['entity_name']}, "
-                           f"{entity['entity_type']}) [{entity['confidence']:.2f}]\n")
+                for entity in result["entities"]:
+                    f.write(
+                        f"  - {entity['mention']} ({entity['entity_name']}, "
+                        f"{entity['entity_type']}) [{entity['confidence']:.2f}]\n"
+                    )
                 f.write("\n")
+
 
 def main():
     """Main function"""
@@ -191,7 +219,7 @@ def main():
         "index_path": args.index_path,
         "cache_dir": args.cache_dir,
         "use_gpu": torch.cuda.is_available(),
-        "quantization": args.quantization
+        "quantization": args.quantization,
     }
 
     # Initialize system
@@ -234,7 +262,7 @@ def main():
     if args.profile:
         # Print profiling results
         profile.disable()
-        stats = pstats.Stats(profile).sort_stats('cumtime')
+        stats = pstats.Stats(profile).sort_stats("cumtime")
         stats.print_stats(20)
 
     # Save output

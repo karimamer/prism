@@ -3,5 +3,6 @@ try:
 except ImportError as e:
     # Handle missing dependencies gracefully
     import warnings
-    warnings.warn(f"Could not import UnifiedEntityResolutionSystem: {e}")
+
+    warnings.warn(f"Could not import UnifiedEntityResolutionSystem: {e}", stacklevel=2)
     UnifiedEntityResolutionSystem = None
