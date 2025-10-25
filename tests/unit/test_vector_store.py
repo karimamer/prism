@@ -1,9 +1,10 @@
 """Unit tests for vector store functionality."""
 
-import pytest
 import json
-import numpy as np
 from pathlib import Path
+
+import numpy as np
+import pytest
 
 
 @pytest.mark.unit

@@ -1,8 +1,10 @@
 """Pytest configuration and shared fixtures."""
+
 import json
+from pathlib import Path
+
 import pytest
 import torch
-from pathlib import Path
 
 
 @pytest.fixture(scope="session")
@@ -10,7 +12,7 @@ def sample_entities():
     """Load sample entities for testing."""
     entities_path = Path(__file__).parent.parent / "sample_entities.json"
     if entities_path.exists():
-        with open(entities_path, "r") as f:
+        with open(entities_path) as f:
             return json.load(f)
     return [
         {
@@ -77,6 +79,7 @@ def mock_faiss_index(monkeypatch):
         def search(self, queries, k):
             # Return dummy results
             import numpy as np
+
             batch_size = len(queries)
             distances = np.random.rand(batch_size, k).astype(np.float32)
             indices = np.random.randint(0, 100, (batch_size, k)).astype(np.int64)
@@ -87,6 +90,7 @@ def mock_faiss_index(monkeypatch):
 
     try:
         import faiss
+
         monkeypatch.setattr(faiss, "IndexFlatIP", mock_index_flat_ip)
     except ImportError:
         pass

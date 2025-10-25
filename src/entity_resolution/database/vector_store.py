@@ -1,19 +1,20 @@
-import os
-import json
 import csv
-import torch
+import json
+import logging
+import os
+from pathlib import Path
+from typing import Any, Optional
+
 import faiss
 import numpy as np
-import logging
-from typing import Dict, List, Any, Tuple, Optional
-from pathlib import Path
+import torch
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
 
 class EntityKnowledgeBase:
     """
@@ -24,12 +25,13 @@ class EntityKnowledgeBase:
     2. Create and manage entity embeddings
     3. Perform efficient nearest-neighbor search
     """
+
     def __init__(
         self,
         index_path: str = "./entity_index",
         cache_dir: str = "./cache",
         dimension: int = 256,
-        use_gpu: bool = torch.cuda.is_available()
+        use_gpu: bool = torch.cuda.is_available(),
     ):
         self.index_path = index_path
         self.cache_dir = cache_dir
@@ -75,7 +77,7 @@ class EntityKnowledgeBase:
             self.index = faiss.IndexFlatIP(self.dimension)
             logger.info("Using CPU FAISS index")
 
-    def load_entities(self, entity_file: str) -> Dict[str, Dict[str, Any]]:
+    def load_entities(self, entity_file: str) -> dict[str, dict[str, Any]]:
         """
         Load entities from a file.
 
@@ -93,9 +95,9 @@ class EntityKnowledgeBase:
             raise FileNotFoundError(f"Entity file not found: {entity_file}")
 
         # Load entities based on file type
-        if file_path.suffix.lower() == '.json':
+        if file_path.suffix.lower() == ".json":
             entities = self._load_entities_from_json(file_path)
-        elif file_path.suffix.lower() == '.csv':
+        elif file_path.suffix.lower() == ".csv":
             entities = self._load_entities_from_csv(file_path)
         else:
             raise ValueError(f"Unsupported file type: {file_path.suffix}")
@@ -110,9 +112,9 @@ class EntityKnowledgeBase:
 
         return entities
 
-    def _load_entities_from_json(self, file_path: Path) -> Dict[str, Dict[str, Any]]:
+    def _load_entities_from_json(self, file_path: Path) -> dict[str, dict[str, Any]]:
         """Load entities from JSON file"""
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, encoding="utf-8") as f:
             data = json.load(f)
 
         # Check data format
@@ -120,8 +122,8 @@ class EntityKnowledgeBase:
             # Convert list to dictionary
             entities = {}
             for entity in data:
-                if 'id' in entity:
-                    entity_id = entity['id']
+                if "id" in entity:
+                    entity_id = entity["id"]
                     entities[entity_id] = entity
                 else:
                     logger.warning(f"Skipping entity without ID: {entity}")
@@ -133,18 +135,18 @@ class EntityKnowledgeBase:
 
         return entities
 
-    def _load_entities_from_csv(self, file_path: Path) -> Dict[str, Dict[str, Any]]:
+    def _load_entities_from_csv(self, file_path: Path) -> dict[str, dict[str, Any]]:
         """Load entities from CSV file"""
         entities = {}
 
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, encoding="utf-8") as f:
             # Read CSV file
             reader = csv.DictReader(f)
 
             # Process each row
             for row in reader:
-                if 'id' in row:
-                    entity_id = row['id']
+                if "id" in row:
+                    entity_id = row["id"]
                     entities[entity_id] = row
                 else:
                     # Generate ID if not present
@@ -157,12 +159,12 @@ class EntityKnowledgeBase:
         """Save entities to cache"""
         cache_file = os.path.join(self.cache_dir, "entities.json")
 
-        with open(cache_file, 'w', encoding='utf-8') as f:
+        with open(cache_file, "w", encoding="utf-8") as f:
             json.dump(self.entities, f)
 
         logger.info(f"Saved {len(self.entities)} entities to cache")
 
-    def build_index(self, entity_embeddings: Dict[str, np.ndarray]):
+    def build_index(self, entity_embeddings: dict[str, np.ndarray]):
         """
         Build FAISS index from entity embeddings.
 
@@ -195,7 +197,7 @@ class EntityKnowledgeBase:
 
         # Save entity IDs
         ids_file = os.path.join(self.index_path, "entity_ids.json")
-        with open(ids_file, 'w', encoding='utf-8') as f:
+        with open(ids_file, "w", encoding="utf-8") as f:
             json.dump(entity_ids, f)
 
         logger.info(f"Built index with {len(entity_ids)} entities")
@@ -210,7 +212,7 @@ class EntityKnowledgeBase:
             return False
 
         # Load entity IDs
-        with open(ids_file, 'r', encoding='utf-8') as f:
+        with open(ids_file, encoding="utf-8") as f:
             self.entity_ids = json.load(f)
 
         # Load index
@@ -233,7 +235,7 @@ class EntityKnowledgeBase:
 
         return True
 
-    def search(self, query_embedding: np.ndarray, k: int = 10) -> List[Tuple[str, float]]:
+    def search(self, query_embedding: np.ndarray, k: int = 10) -> list[tuple[str, float]]:
         """
         Search for most similar entities.
 
@@ -245,7 +247,7 @@ class EntityKnowledgeBase:
             List of (entity_id, score) tuples
         """
         # Ensure index is loaded
-        if self.index is None or not hasattr(self, 'entity_ids'):
+        if self.index is None or not hasattr(self, "entity_ids"):
             if not self.load_index():
                 logger.error("No index available for search")
                 return []
@@ -266,14 +268,14 @@ class EntityKnowledgeBase:
 
         # Format results
         results = []
-        for i, (score, idx) in enumerate(zip(scores[0], indices[0])):
+        for _i, (score, idx) in enumerate(zip(scores[0], indices[0])):
             if idx >= 0 and idx < len(self.entity_ids):  # Valid index
                 entity_id = self.entity_ids[idx]
                 results.append((entity_id, float(score)))
 
         return results
 
-    def get_entity(self, entity_id: str) -> Optional[Dict[str, Any]]:
+    def get_entity(self, entity_id: str) -> Optional[dict[str, Any]]:
         """
         Get entity by ID.
 
@@ -285,7 +287,7 @@ class EntityKnowledgeBase:
         """
         return self.entities.get(entity_id)
 
-    def get_entities(self, entity_ids: List[str]) -> Dict[str, Dict[str, Any]]:
+    def get_entities(self, entity_ids: list[str]) -> dict[str, dict[str, Any]]:
         """
         Get multiple entities by ID.
 
@@ -297,7 +299,12 @@ class EntityKnowledgeBase:
         """
         return {eid: self.entities[eid] for eid in entity_ids if eid in self.entities}
 
-    def add_entity(self, entity_id: str, entity_data: Dict[str, Any], entity_embedding: Optional[np.ndarray] = None):
+    def add_entity(
+        self,
+        entity_id: str,
+        entity_data: dict[str, Any],
+        entity_embedding: Optional[np.ndarray] = None,
+    ):
         """
         Add a new entity to the knowledge base.
 
@@ -326,7 +333,7 @@ class EntityKnowledgeBase:
             self.index.add(entity_embedding)
 
             # Update entity IDs
-            if hasattr(self, 'entity_ids'):
+            if hasattr(self, "entity_ids"):
                 self.entity_ids.append(entity_id)
             else:
                 self.entity_ids = [entity_id]

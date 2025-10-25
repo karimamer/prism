@@ -1,7 +1,8 @@
 """Unit tests for output formatting."""
 
-import pytest
 import json
+
+import pytest
 
 
 @pytest.mark.unit

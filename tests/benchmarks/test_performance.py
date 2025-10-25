@@ -1,7 +1,7 @@
 """Performance benchmarks for PRISM components."""
 
-import pytest
 import numpy as np
+import pytest
 
 
 @pytest.mark.benchmark
