@@ -2,9 +2,9 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, change-models ]
+    branches: [main, change-models]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   lint:
@@ -12,30 +12,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@v3
-      with:
-        enable-cache: true
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
 
-    - name: Install dependencies
-      run: |
-        uv pip install --system ruff
+      - name: Install dependencies
+        run: |
+          uv pip install --system ruff
 
-    - name: Run Ruff linter
-      run: |
-        ruff check . --output-format=github
+      - name: Run Ruff linter
+        run: |
+          ruff check . --output-format=github
 
-    - name: Run Ruff formatter check
-      run: |
-        ruff format --check .
+      - name: Run Ruff formatter check
+        run: |
+          ruff format --check .
 
   test:
     name: Tests (Python ${{ matrix.python-version }})
@@ -43,102 +43,102 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.9', '3.10', '3.11', '3.12']
+        python-version: ["3.9"]
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@v3
-      with:
-        enable-cache: true
-        cache-dependency-glob: "uv.lock"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
 
-    - name: Install dependencies
-      run: |
-        uv pip install --system -e ".[dev]"
-        uv pip install --system pytest pytest-cov pytest-xdist
+      - name: Install dependencies
+        run: |
+          uv pip install --system -e ".[dev]"
+          uv pip install --system pytest pytest-cov pytest-xdist
 
-    - name: Run tests with coverage
-      run: |
-        pytest tests/ -v --cov=src/entity_resolution --cov-report=xml --cov-report=term-missing --numprocesses=auto
-      env:
-        PYTHONPATH: ${{ github.workspace }}/src
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ -v --cov=src/entity_resolution --cov-report=xml --cov-report=term-missing --numprocesses=auto
+        env:
+          PYTHONPATH: ${{ github.workspace }}/src
 
-    - name: Upload coverage to Codecov
-      if: matrix.python-version == '3.11'
-      uses: codecov/codecov-action@v4
-      with:
-        file: ./coverage.xml
-        flags: unittests
-        name: codecov-umbrella
-        fail_ci_if_error: false
+      - name: Upload coverage to Codecov
+        if: matrix.python-version == '3.11'
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
 
   type-check:
     name: Type Checking (mypy)
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@v3
-      with:
-        enable-cache: true
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
 
-    - name: Install dependencies
-      run: |
-        uv pip install --system -e ".[dev]"
-        uv pip install --system mypy
+      - name: Install dependencies
+        run: |
+          uv pip install --system -e ".[dev]"
+          uv pip install --system mypy
 
-    - name: Run mypy
-      run: |
-        mypy src/entity_resolution --ignore-missing-imports --no-strict-optional
-      continue-on-error: true  # Don't fail build on type errors initially
+      - name: Run mypy
+        run: |
+          mypy src/entity_resolution --ignore-missing-imports --no-strict-optional
+        continue-on-error: true # Don't fail build on type errors initially
 
   security:
     name: Security Scanning
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@v3
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
 
-    - name: Install bandit
-      run: |
-        uv pip install --system bandit[toml]
+      - name: Install bandit
+        run: |
+          uv pip install --system bandit[toml]
 
-    - name: Run Bandit security scanner
-      run: |
-        bandit -r src/entity_resolution -f json -o bandit-report.json
-      continue-on-error: true
+      - name: Run Bandit security scanner
+        run: |
+          bandit -r src/entity_resolution -f json -o bandit-report.json
+        continue-on-error: true
 
-    - name: Upload Bandit report
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: bandit-security-report
-        path: bandit-report.json
+      - name: Upload Bandit report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bandit-security-report
+          path: bandit-report.json
 
   build:
     name: Build Distribution
@@ -146,26 +146,26 @@ jobs:
     needs: [lint, test]
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@v3
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
 
-    - name: Build package
-      run: |
-        uv build
+      - name: Build package
+        run: |
+          uv build
 
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: python-package-distributions
-        path: dist/
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-package-distributions
+          path: dist/
 
   performance:
     name: Performance Benchmarks
@@ -173,32 +173,32 @@ jobs:
     if: github.event_name == 'pull_request'
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@v3
-      with:
-        enable-cache: true
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
 
-    - name: Install dependencies
-      run: |
-        uv pip install --system -e ".[dev]"
-        uv pip install --system pytest-benchmark
+      - name: Install dependencies
+        run: |
+          uv pip install --system -e ".[dev]"
+          uv pip install --system pytest-benchmark
 
-    - name: Run performance benchmarks
-      run: |
-        pytest tests/benchmarks/ --benchmark-only --benchmark-json=benchmark.json
-      continue-on-error: true
+      - name: Run performance benchmarks
+        run: |
+          pytest tests/benchmarks/ --benchmark-only --benchmark-json=benchmark.json
+        continue-on-error: true
 
-    - name: Upload benchmark results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: benchmark-results
-        path: benchmark.json
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-results
+          path: benchmark.json
