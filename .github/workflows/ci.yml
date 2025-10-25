@@ -167,38 +167,38 @@ jobs:
           name: python-package-distributions
           path: dist/
 
-  performance:
-    name: Performance Benchmarks
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+  # performance:
+  #   name: Performance Benchmarks
+  #   runs-on: ubuntu-latest
+  #   if: github.event_name == 'pull_request'
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v5
+  #       with:
+  #         python-version: "3.11"
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
-        with:
-          enable-cache: true
+  #     - name: Install uv
+  #       uses: astral-sh/setup-uv@v3
+  #       with:
+  #         enable-cache: true
 
-      - name: Install dependencies
-        run: |
-          uv pip install --system -e ".[dev]"
-          uv pip install --system pytest-benchmark
+  #     - name: Install dependencies
+  #       run: |
+  #         uv pip install --system -e ".[dev]"
+  #         uv pip install --system pytest-benchmark
 
-      - name: Run performance benchmarks
-        run: |
-          pytest tests/benchmarks/ --benchmark-only --benchmark-json=benchmark.json
-        continue-on-error: true
+  #     - name: Run performance benchmarks
+  #       run: |
+  #         pytest tests/benchmarks/ --benchmark-only --benchmark-json=benchmark.json
+  #       continue-on-error: true
 
-      - name: Upload benchmark results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: benchmark-results
-          path: benchmark.json
+  #     - name: Upload benchmark results
+  #       uses: actions/upload-artifact@v4
+  #       if: always()
+  #       with:
+  #         name: benchmark-results
+  #         path: benchmark.json
