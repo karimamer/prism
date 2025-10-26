@@ -14,12 +14,12 @@ import torch
 import torch.nn as nn
 
 from src.entity_resolution.database.vector_store import EntityKnowledgeBase
-from src.entity_resolution.models.consensus import ConsensusModule
-from src.entity_resolution.models.reader import EntityReader
-from src.entity_resolution.models.retriever import EntityRetriever
-from src.entity_resolution.models.entity_encoder import EntityFocusedEncoder
 from src.entity_resolution.models.candidate_generator import EntityCandidateGenerator
+from src.entity_resolution.models.consensus import ConsensusModule
+from src.entity_resolution.models.entity_encoder import EntityFocusedEncoder
+from src.entity_resolution.models.reader import EntityReader
 from src.entity_resolution.models.resolution_processor import EntityResolutionProcessor
+from src.entity_resolution.models.retriever import EntityRetriever
 from src.entity_resolution.validation import (
     InputValidator,
     SystemConfig,
