@@ -25,17 +25,17 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Install dependencies
+      - name: Sync dependencies
         run: |
-          uv pip install --system ruff
+          uv sync --frozen
 
       - name: Run Ruff linter
         run: |
-          ruff check . --output-format=github
+          uv run ruff check . --output-format=github
 
       - name: Run Ruff formatter check
         run: |
-          ruff format --check .
+          uv run ruff format --check .
 
   test:
     name: Tests (Python ${{ matrix.python-version }})
@@ -43,7 +43,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9"]
+        python-version: ["3.9", "3.10", "3.11"]
 
     steps:
       - name: Checkout code
@@ -60,14 +60,13 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
-      - name: Install dependencies
+      - name: Sync dependencies
         run: |
-          uv pip install --system -e ".[dev]"
-          uv pip install --system pytest pytest-cov pytest-xdist
+          uv sync --frozen
 
-      - name: Run tests with coverage
+      - name: Run tests with coverage (excluding E2E tests)
         run: |
-          pytest tests/ -v --cov=src/entity_resolution --cov-report=xml --cov-report=term-missing --numprocesses=auto
+          uv run pytest tests/ -v -m "not e2e" --cov=src/entity_resolution --cov-report=xml --cov-report=term-missing
         env:
           PYTHONPATH: ${{ github.workspace }}/src
 
@@ -98,14 +97,13 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Install dependencies
+      - name: Sync dependencies
         run: |
-          uv pip install --system -e ".[dev]"
-          uv pip install --system mypy
+          uv sync --frozen
 
       - name: Run mypy
         run: |
-          mypy src/entity_resolution --ignore-missing-imports --no-strict-optional
+          uv run mypy src/entity_resolution --ignore-missing-imports --no-strict-optional
         continue-on-error: true # Don't fail build on type errors initially
 
   security:
@@ -123,14 +121,16 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
 
-      - name: Install bandit
+      - name: Sync dependencies
         run: |
-          uv pip install --system bandit[toml]
+          uv sync --frozen
 
       - name: Run Bandit security scanner
         run: |
-          bandit -r src/entity_resolution -f json -o bandit-report.json
+          uv run bandit -r src/entity_resolution -f json -o bandit-report.json
         continue-on-error: true
 
       - name: Upload Bandit report
@@ -139,6 +139,42 @@ jobs:
         with:
           name: bandit-security-report
           path: bandit-report.json
+
+  e2e-tests:
+    name: E2E Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    # Only run E2E tests on main branch or when manually triggered
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11"]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Sync dependencies
+        run: |
+          uv sync --frozen
+
+      - name: Run E2E tests
+        run: |
+          uv run pytest tests/ -v -m "e2e" --tb=short
+        env:
+          PYTHONPATH: ${{ github.workspace }}/src
+        timeout-minutes: 30
 
   build:
     name: Build Distribution
@@ -156,6 +192,8 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
 
       - name: Build package
         run: |

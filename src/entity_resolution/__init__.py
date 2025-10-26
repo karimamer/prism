@@ -9,12 +9,12 @@ __version__ = "0.1.0"
 
 # Output models
 from entity_resolution.models.output import (
-                                             EntityPrediction,
-                                             EntityType,
-                                             ModelStatus,
-                                             RelationPrediction,
-                                             UnifiedSystemOutput,
-                                             create_unified_output,
+    EntityPrediction,
+    EntityType,
+    ModelStatus,
+    RelationPrediction,
+    UnifiedSystemOutput,
+    create_unified_output,
 )
 
 # Core system
@@ -22,12 +22,12 @@ from entity_resolution.unified_system import UnifiedEntityResolutionSystem
 
 # Configuration and validation
 from entity_resolution.validation import (
-                                             EntityCollection,
-                                             EntityData,
-                                             InputValidator,
-                                             SystemConfig,
-                                             validate_and_load_entities,
-                                             validate_config,
+    EntityCollection,
+    EntityData,
+    InputValidator,
+    SystemConfig,
+    validate_and_load_entities,
+    validate_config,
 )
 
 __all__ = [
