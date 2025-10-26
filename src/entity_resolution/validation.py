@@ -33,6 +33,51 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 
+class EntityEncoderConfig(BaseModel):
+    """Configuration for the entity-focused encoder component."""
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+
+    model_name: str = Field(
+        default="microsoft/deberta-v3-base",
+        description="HuggingFace model identifier for the entity encoder",
+    )
+    entity_knowledge_dim: int = Field(
+        default=256, ge=64, le=1024, description="Entity knowledge projection dimension"
+    )
+    num_entity_types: int = Field(default=50, ge=1, le=200, description="Number of entity types")
+    dropout: float = Field(default=0.1, ge=0.0, le=0.5, description="Dropout probability")
+
+    @field_validator("model_name")
+    @classmethod
+    def validate_model_name(cls, v: str) -> str:
+        """Validate model name is not empty."""
+        if not v or not v.strip():
+            raise ValueError("model_name cannot be empty")
+        return v.strip()
+
+
+class CandidateGeneratorConfig(BaseModel):
+    """Configuration for the candidate generator component."""
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+
+    embedding_dim: int = Field(default=768, ge=128, le=2048, description="Embedding dimension")
+    num_bio_tags: int = Field(default=3, ge=2, le=10, description="Number of BIO tags")
+    top_k: int = Field(default=100, ge=1, le=1000, description="Number of candidates to retrieve")
+    dropout: float = Field(default=0.1, ge=0.0, le=0.5, description="Dropout probability")
+
+
+class ResolutionProcessorConfig(BaseModel):
+    """Configuration for the resolution processor component."""
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+
+    encoder_dim: int = Field(default=768, ge=128, le=2048, description="Encoder dimension")
+    num_heads: int = Field(default=8, ge=1, le=16, description="Number of attention heads")
+    dropout: float = Field(default=0.1, ge=0.0, le=0.5, description="Dropout probability")
+
+
 class RetrieverConfig(BaseModel):
     """Configuration for the retriever component."""
 
@@ -119,6 +164,27 @@ class SystemConfig(BaseModel):
         default=0.6, ge=0.0, le=1.0, description="Consensus threshold"
     )
     batch_size: int = Field(default=8, ge=1, le=128, description="Processing batch size")
+
+    # New component flags
+    use_entity_encoder: bool = Field(
+        default=False, description="Use EntityFocusedEncoder for entity-aware encoding"
+    )
+    use_candidate_generator: bool = Field(
+        default=False, description="Use unified EntityCandidateGenerator"
+    )
+    use_resolution_processor: bool = Field(
+        default=False, description="Use EntityResolutionProcessor with cross-model attention"
+    )
+
+    # New component configurations
+    entity_encoder_dim: int = Field(
+        default=256, ge=64, le=1024, description="Entity knowledge dimension for encoder"
+    )
+    num_entity_types: int = Field(default=50, ge=1, le=200, description="Number of entity types")
+    num_attention_heads: int = Field(
+        default=8, ge=1, le=16, description="Number of attention heads"
+    )
+    dropout: float = Field(default=0.1, ge=0.0, le=0.5, description="Dropout probability")
 
     # Paths
     index_path: str = Field(default="./entity_index", description="Entity index path")
@@ -259,6 +325,9 @@ class EntityCollection(BaseModel):
             entities_data = data
         elif isinstance(data, dict) and "entities" in data:
             entities_data = data["entities"]
+        elif isinstance(data, dict):
+            # Handle dict with entity IDs as keys: {"Q312": {...}, "Q19837": {...}}
+            entities_data = list(data.values())
         else:
             raise ValueError("Entity file must be a list of entities or dict with 'entities' key")
 

@@ -17,6 +17,9 @@ from src.entity_resolution.database.vector_store import EntityKnowledgeBase
 from src.entity_resolution.models.consensus import ConsensusModule
 from src.entity_resolution.models.reader import EntityReader
 from src.entity_resolution.models.retriever import EntityRetriever
+from src.entity_resolution.models.entity_encoder import EntityFocusedEncoder
+from src.entity_resolution.models.candidate_generator import EntityCandidateGenerator
+from src.entity_resolution.models.resolution_processor import EntityResolutionProcessor
 from src.entity_resolution.validation import (
     InputValidator,
     SystemConfig,
@@ -122,6 +125,70 @@ class UnifiedEntityResolutionSystem(nn.Module):
 
     def _initialize_components(self) -> None:
         """Initialize all model components with validation."""
+        # Initialize entity-focused encoder (new component)
+        if self.config.use_entity_encoder:
+            logger.info("Initializing EntityFocusedEncoder")
+            try:
+                self.entity_encoder = EntityFocusedEncoder(
+                    pretrained_model_name=self.config.reader_model,
+                    entity_knowledge_dim=self.config.entity_encoder_dim,
+                    num_entity_types=self.config.num_entity_types,
+                    dropout=self.config.dropout,
+                )
+                self.entity_encoder.to(self.device)
+                logger.info("EntityFocusedEncoder initialized successfully")
+            except Exception as e:
+                logger.error(f"Failed to initialize entity encoder: {e}")
+                raise RuntimeError(f"Entity encoder initialization failed: {e}") from e
+        else:
+            self.entity_encoder = None
+
+        # Initialize candidate generator (new component)
+        if self.config.use_candidate_generator:
+            logger.info("Initializing EntityCandidateGenerator")
+            try:
+                # Get embedding dimension from reader or encoder
+                if self.entity_encoder is not None:
+                    embedding_dim = self.entity_encoder.hidden_size
+                else:
+                    embedding_dim = 768  # Default
+
+                self.candidate_generator = EntityCandidateGenerator(
+                    embedding_dim=embedding_dim,
+                    knowledge_base=self.knowledge_base,
+                    dropout=self.config.dropout,
+                )
+                self.candidate_generator.to(self.device)
+                logger.info("EntityCandidateGenerator initialized successfully")
+            except Exception as e:
+                logger.error(f"Failed to initialize candidate generator: {e}")
+                raise RuntimeError(f"Candidate generator initialization failed: {e}") from e
+        else:
+            self.candidate_generator = None
+
+        # Initialize resolution processor (new component)
+        if self.config.use_resolution_processor:
+            logger.info("Initializing EntityResolutionProcessor")
+            try:
+                # Get encoder dimension
+                if self.entity_encoder is not None:
+                    encoder_dim = self.entity_encoder.hidden_size
+                else:
+                    encoder_dim = 768  # Default
+
+                self.resolution_processor = EntityResolutionProcessor(
+                    encoder_dim=encoder_dim,
+                    num_heads=self.config.num_attention_heads,
+                    dropout=self.config.dropout,
+                )
+                self.resolution_processor.to(self.device)
+                logger.info("EntityResolutionProcessor initialized successfully")
+            except Exception as e:
+                logger.error(f"Failed to initialize resolution processor: {e}")
+                raise RuntimeError(f"Resolution processor initialization failed: {e}") from e
+        else:
+            self.resolution_processor = None
+
         # Initialize retriever
         logger.info(f"Initializing retriever: {self.config.retriever_model}")
         try:
