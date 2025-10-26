@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from src.entity_resolution.validation import (
+from entity_resolution.validation import (
     EntityCollection,
     EntityData,
     InputValidator,

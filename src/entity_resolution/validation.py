@@ -16,14 +16,7 @@ from pathlib import Path
 from typing import Any, Literal, Optional, Union
 
 import torch
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    Field,
-    ValidationError,
-    field_validator,
-    model_validator,
-)
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 logger = logging.getLogger(__name__)
 
@@ -143,6 +136,41 @@ class ConsensusConfig(BaseModel):
     )
 
 
+class ImprovedATGConfig(BaseModel):
+    """Configuration for the improved ATG model."""
+
+    model_config = ConfigDict(extra="forbid", validate_assignment=True)
+
+    encoder_model: str = Field(
+        default="microsoft/deberta-v3-base",
+        description="HuggingFace model for encoder",
+    )
+    decoder_layers: int = Field(default=6, ge=1, le=12, description="Number of decoder layers")
+    decoder_heads: int = Field(default=8, ge=1, le=16, description="Number of attention heads")
+    decoder_dim_feedforward: int = Field(
+        default=2048, ge=512, le=4096, description="Decoder FFN dimension"
+    )
+    max_span_length: int = Field(default=12, ge=1, le=50, description="Maximum span length")
+    max_seq_length: int = Field(default=512, ge=64, le=2048, description="Maximum sequence length")
+    dropout: float = Field(default=0.1, ge=0.0, le=0.5, description="Dropout probability")
+    sentence_augmentation_max: int = Field(
+        default=5, ge=1, le=10, description="Max sentences for augmentation"
+    )
+    use_sorted_ordering: bool = Field(
+        default=True, description="Use sorted ordering for linearization"
+    )
+    top_p: float = Field(default=1.0, ge=0.0, le=1.0, description="Nucleus sampling parameter")
+    temperature: float = Field(default=1.0, ge=0.1, le=2.0, description="Sampling temperature")
+
+    @field_validator("encoder_model")
+    @classmethod
+    def validate_model_name(cls, v: str) -> str:
+        """Validate model name is not empty."""
+        if not v or not v.strip():
+            raise ValueError("encoder_model cannot be empty")
+        return v.strip()
+
+
 class SystemConfig(BaseModel):
     """Complete system configuration with validation."""
 
@@ -175,6 +203,18 @@ class SystemConfig(BaseModel):
     use_resolution_processor: bool = Field(
         default=False, description="Use EntityResolutionProcessor with cross-model attention"
     )
+    use_improved_atg: bool = Field(
+        default=True, description="Use improved ATG model for joint entity-relation extraction"
+    )
+    use_relik: bool = Field(
+        default=True, description="Use ReLiK model for entity linking and relation extraction"
+    )
+    use_spel: bool = Field(
+        default=True, description="Use SPEL model for structured prediction entity linking"
+    )
+    use_unirel: bool = Field(
+        default=True, description="Use UniRel model for joint relational triple extraction"
+    )
 
     # New component configurations
     entity_encoder_dim: int = Field(
@@ -185,6 +225,102 @@ class SystemConfig(BaseModel):
         default=8, ge=1, le=16, description="Number of attention heads"
     )
     dropout: float = Field(default=0.1, ge=0.0, le=0.5, description="Dropout probability")
+
+    # ATG-specific configurations
+    entity_types: Optional[list[str]] = Field(
+        default=None, description="List of entity type labels for ATG and ReLiK"
+    )
+    relation_types: Optional[list[str]] = Field(
+        default=None, description="List of relation type labels for ATG and ReLiK"
+    )
+    atg_decoder_layers: int = Field(default=6, ge=1, le=12, description="ATG decoder layers")
+    atg_max_span_length: int = Field(default=12, ge=1, le=50, description="ATG max span length")
+    atg_decoder_dim: int = Field(
+        default=2048, ge=512, le=4096, description="ATG decoder FFN dimension"
+    )
+    sentence_augmentation_max: int = Field(
+        default=5, ge=1, le=10, description="Max sentences for augmentation"
+    )
+    use_sorted_ordering: bool = Field(default=True, description="Use sorted ordering in ATG")
+    top_p: float = Field(default=1.0, ge=0.0, le=1.0, description="Nucleus sampling parameter")
+    temperature: float = Field(default=1.0, ge=0.1, le=2.0, description="Sampling temperature")
+
+    # ReLiK-specific configurations
+    relik_retriever_model: Optional[str] = Field(
+        default=None, description="ReLiK retriever model (defaults to retriever_model if None)"
+    )
+    relik_reader_model: Optional[str] = Field(
+        default=None, description="ReLiK reader model (defaults to reader_model if None)"
+    )
+    relik_use_el: bool = Field(default=True, description="Enable ReLiK entity linking")
+    relik_use_re: bool = Field(default=False, description="Enable ReLiK relation extraction")
+    relik_top_k: int = Field(
+        default=100, ge=1, le=500, description="ReLiK top-k candidates to retrieve"
+    )
+    relik_num_el_passages: int = Field(
+        default=100, ge=1, le=500, description="Number of entity passages for ReLiK reader"
+    )
+    relik_num_re_passages: int = Field(
+        default=24, ge=1, le=100, description="Number of relation passages for ReLiK reader"
+    )
+    relik_span_threshold: float = Field(
+        default=0.5, ge=0.0, le=1.0, description="ReLiK span detection threshold"
+    )
+    relik_entity_threshold: float = Field(
+        default=0.5, ge=0.0, le=1.0, description="ReLiK entity linking threshold"
+    )
+    relik_relation_threshold: float = Field(
+        default=0.5, ge=0.0, le=1.0, description="ReLiK relation extraction threshold"
+    )
+
+    # SPEL-specific configurations
+    spel_model_name: Optional[str] = Field(
+        default=None, description="SPEL encoder model (defaults to 'roberta-base' if None)"
+    )
+    spel_fixed_candidate_set_size: int = Field(
+        default=500000, ge=1000, le=1000000, description="SPEL fixed candidate set size"
+    )
+    spel_use_mention_specific_candidates: bool = Field(
+        default=False, description="Use mention-specific candidate sets in SPEL"
+    )
+    spel_num_hard_negatives: int = Field(
+        default=5000, ge=0, le=10000, description="Number of hard negatives for SPEL training"
+    )
+    spel_span_threshold: float = Field(
+        default=0.5, ge=0.0, le=1.0, description="SPEL span detection threshold"
+    )
+    spel_entity_threshold: float = Field(
+        default=0.5, ge=0.0, le=1.0, description="SPEL entity prediction threshold"
+    )
+
+    # UniRel-specific configurations
+    unirel_encoder_model: Optional[str] = Field(
+        default=None, description="UniRel encoder model (defaults to reader_model if None)"
+    )
+    unirel_hidden_size: int = Field(
+        default=768, ge=128, le=1024, description="UniRel hidden size (768 for BERT-base)"
+    )
+    unirel_relation_verbalizations: Optional[dict] = Field(
+        default=None, description="Custom relation verbalizations for UniRel"
+    )
+    unirel_interaction_threshold: float = Field(
+        default=0.5, ge=0.0, le=1.0, description="UniRel interaction map threshold"
+    )
+    unirel_interaction_dropout: float = Field(
+        default=0.1, ge=0.0, le=0.5, description="UniRel interaction dropout rate"
+    )
+    unirel_entity_threshold: float = Field(
+        default=0.5, ge=0.0, le=1.0, description="UniRel entity extraction threshold"
+    )
+    unirel_triple_threshold: float = Field(
+        default=0.5, ge=0.0, le=1.0, description="UniRel triple extraction threshold"
+    )
+    unirel_max_triples: int = Field(
+        default=20, ge=1, le=100, description="UniRel max triples per sentence"
+    )
+    unirel_handle_overlapping: bool = Field(
+        default=True, description="UniRel handle overlapping triple patterns (SEO, EPO, SOO)"
+    )
 
     # Paths
     index_path: str = Field(default="./entity_index", description="Entity index path")
@@ -327,6 +463,12 @@ class EntityCollection(BaseModel):
             entities_data = data["entities"]
         elif isinstance(data, dict):
             # Handle dict with entity IDs as keys: {"Q312": {...}, "Q19837": {...}}
+            # First validate all values are dicts
+            if not all(isinstance(v, dict) for v in data.values()):
+                raise ValueError(
+                    "Entity file must be a list of entities or dict with 'entities' key. "
+                    "If using dict format, all values must be entity objects (dicts)."
+                )
             entities_data = list(data.values())
         else:
             raise ValueError("Entity file must be a list of entities or dict with 'entities' key")

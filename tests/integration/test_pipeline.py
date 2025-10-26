@@ -7,7 +7,7 @@ import pytest
 @pytest.mark.slow
 def test_unified_system_initialization(simple_config):
     """Test initializing the unified system."""
-    from src.entity_resolution.unified_system import UnifiedEntityResolutionSystem
+    from entity_resolution.unified_system import UnifiedEntityResolutionSystem
 
     try:
         system = UnifiedEntityResolutionSystem(simple_config)
@@ -21,7 +21,7 @@ def test_unified_system_initialization(simple_config):
 @pytest.mark.slow
 def test_end_to_end_processing(simple_config, sample_text, temp_entity_file):
     """Test end-to-end text processing."""
-    from src.entity_resolution.unified_system import UnifiedEntityResolutionSystem
+    from entity_resolution.unified_system import UnifiedEntityResolutionSystem
 
     try:
         system = UnifiedEntityResolutionSystem(simple_config)
@@ -40,7 +40,7 @@ def test_end_to_end_processing(simple_config, sample_text, temp_entity_file):
 @pytest.mark.integration
 def test_batch_processing(simple_config, temp_entity_file):
     """Test batch processing of multiple texts."""
-    from src.entity_resolution.unified_system import UnifiedEntityResolutionSystem
+    from entity_resolution.unified_system import UnifiedEntityResolutionSystem
 
     texts = [
         "Apple Inc. is a technology company.",
