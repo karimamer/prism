@@ -1,9 +1,13 @@
+import math
+import re
+from typing import Dict, List, Optional, Tuple
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from transformers import AutoModel, AutoConfig, AutoTokenizer
-from typing import List, Dict, Tuple, Optional
-import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+from transformers import AutoConfig, AutoModel, AutoTokenizer
 
 
 class EntityReader(nn.Module):
@@ -127,6 +131,17 @@ class EntityReader(nn.Module):
             nn.GELU(),
             nn.Dropout(0.1),
             nn.Linear(self.config.hidden_size, 1),
+            nn.Sigmoid(),
+        )
+
+        # Confidence scoring components
+        self.confidence_scorer = nn.Sequential(
+            nn.Linear(self.config.hidden_size * 3, self.config.hidden_size),
+            nn.GELU(),
+            nn.Dropout(0.1),
+            nn.Linear(self.config.hidden_size, self.config.hidden_size // 2),
+            nn.GELU(),
+            nn.Linear(self.config.hidden_size // 2, 1),
             nn.Sigmoid(),
         )
 
@@ -438,27 +453,10 @@ class EntityReader(nn.Module):
                     best_score = 0.0
 
                     for entity in candidate_entities:
-                        # Calculate similarity score based on entity name matching
-                        entity_name = entity.get("name", "")
-                        mention_lower = mention_text.lower()
-                        entity_lower = entity_name.lower()
-
-                        # Calculate score based on match quality
-                        if mention_lower == entity_lower:
-                            # Exact match
-                            score = 1.0
-                        elif mention_lower in entity_lower and entity_lower in mention_lower:
-                            # Bidirectional substring (one contains the other both ways - exact match)
-                            score = 1.0
-                        elif mention_lower in entity_lower:
-                            # Mention is substring of entity name
-                            score = 0.7 + 0.2 * (len(mention_lower) / len(entity_lower))
-                        elif entity_lower in mention_lower:
-                            # Entity name is substring of mention
-                            score = 0.6 + 0.3 * (len(entity_lower) / len(mention_lower))
-                        else:
-                            # No match
-                            score = 0.0
+                        # Calculate comprehensive similarity score
+                        score = self._calculate_entity_confidence(
+                            mention_text, entity, query, mention_span
+                        )
 
                         if score > best_score:
                             best_score = score
@@ -489,6 +487,214 @@ class EntityReader(nn.Module):
             "relations": relations,
             "task_type": task_type,
         }
+
+    def _calculate_entity_confidence(
+        self, mention_text: str, entity: Dict, context: str, mention_span: Tuple[int, int]
+    ) -> float:
+        """
+        Calculate sophisticated confidence score for entity linking.
+
+        Args:
+            mention_text: The mention text
+            entity: Candidate entity dictionary
+            context: Full context text
+            mention_span: Span of the mention in tokens
+
+        Returns:
+            Confidence score between 0 and 1
+        """
+        entity_name = entity.get("name", "")
+        entity_description = entity.get("description", "")
+        entity_type = entity.get("type", "")
+
+        # 1. String matching score (30% weight)
+        string_score = self._calculate_string_similarity(mention_text, entity_name)
+
+        # 2. Semantic similarity score (25% weight) - reduced weight for performance
+        semantic_score = self._calculate_semantic_similarity(
+            mention_text, entity_name, entity_description, context
+        )
+
+        # 3. Type compatibility score (25% weight) - increased weight
+        type_score = self._calculate_type_compatibility(mention_text, entity_type, context)
+
+        # 4. Context relevance score (20% weight) - increased weight
+        context_score = self._calculate_context_relevance(mention_text, entity_description, context)
+
+        # Weighted combination - rebalanced for performance
+        final_score = (
+            0.3 * string_score + 0.25 * semantic_score + 0.25 * type_score + 0.2 * context_score
+        )
+
+        # Apply confidence calibration
+        calibrated_score = self._calibrate_confidence(final_score)
+
+        return min(max(calibrated_score, 0.0), 1.0)
+
+    def _calculate_string_similarity(self, mention: str, entity_name: str) -> float:
+        """Calculate string-based similarity with fuzzy matching."""
+        mention_lower = mention.lower().strip()
+        entity_lower = entity_name.lower().strip()
+
+        if not mention_lower or not entity_lower:
+            return 0.0
+
+        # Exact match
+        if mention_lower == entity_lower:
+            return 1.0
+
+        # Fuzzy substring matching
+        if mention_lower in entity_lower:
+            ratio = len(mention_lower) / len(entity_lower)
+            return 0.7 + 0.3 * ratio
+
+        if entity_lower in mention_lower:
+            ratio = len(entity_lower) / len(mention_lower)
+            return 0.6 + 0.4 * ratio
+
+        # Token-based overlap
+        mention_tokens = set(re.findall(r"\w+", mention_lower))
+        entity_tokens = set(re.findall(r"\w+", entity_lower))
+
+        if mention_tokens and entity_tokens:
+            intersection = mention_tokens.intersection(entity_tokens)
+            union = mention_tokens.union(entity_tokens)
+            jaccard = len(intersection) / len(union)
+            return 0.3 + 0.4 * jaccard
+
+        return 0.0
+
+    def _calculate_semantic_similarity(
+        self, mention: str, entity_name: str, entity_description: str, context: str
+    ) -> float:
+        """Calculate lightweight semantic similarity without expensive embeddings."""
+        # Use lightweight word overlap instead of transformer embeddings
+        mention_words = set(re.findall(r"\w+", mention.lower()))
+        entity_words = set(re.findall(r"\w+", entity_name.lower()))
+        desc_words = (
+            set(re.findall(r"\w+", entity_description.lower()[:200]))
+            if entity_description
+            else set()
+        )
+
+        # Combine entity name and description words
+        all_entity_words = entity_words.union(desc_words)
+
+        if not mention_words or not all_entity_words:
+            return 0.5
+
+        # Calculate Jaccard similarity
+        intersection = mention_words.intersection(all_entity_words)
+        union = mention_words.union(all_entity_words)
+
+        jaccard = len(intersection) / len(union) if union else 0.0
+
+        # Boost score if mention words are high-value entity words
+        name_overlap = len(mention_words.intersection(entity_words))
+        name_boost = name_overlap / len(mention_words) if mention_words else 0.0
+
+        return min(jaccard + 0.3 * name_boost, 1.0)
+
+    def _calculate_type_compatibility(self, mention: str, entity_type: str, context: str) -> float:
+        """Calculate type compatibility based on mention and context."""
+        mention_lower = mention.lower()
+        context_lower = context.lower()
+
+        # Type-specific heuristics
+        type_indicators = {
+            "PERSON": ["mr", "ms", "dr", "prof", "ceo", "president", "manager", "director"],
+            "ORGANIZATION": [
+                "inc",
+                "corp",
+                "ltd",
+                "company",
+                "university",
+                "institute",
+                "association",
+            ],
+            "LOCATION": ["city", "country", "state", "province", "region", "street", "avenue"],
+            "MISC": ["award", "prize", "event", "conference", "protocol", "standard"],
+        }
+
+        if entity_type.upper() in type_indicators:
+            indicators = type_indicators[entity_type.upper()]
+
+            # Check for type indicators in context around mention
+            context_window = context_lower
+            indicator_found = any(indicator in context_window for indicator in indicators)
+
+            if indicator_found:
+                return 0.8
+            else:
+                # Check capitalization patterns for person names
+                if entity_type.upper() == "PERSON" and mention.istitle():
+                    return 0.6
+                elif entity_type.upper() == "ORGANIZATION" and mention.isupper():
+                    return 0.6
+                else:
+                    return 0.4
+
+        return 0.5  # Neutral score for unknown types
+
+    def _calculate_context_relevance(
+        self, mention: str, entity_description: str, context: str
+    ) -> float:
+        """Calculate how relevant the entity is to the surrounding context."""
+        if not entity_description:
+            return 0.5
+
+        try:
+            # Limit context and description length for performance
+            context_limited = context[:300].lower()
+            description_limited = entity_description[:200].lower()
+
+            # Extract keywords from limited text
+            context_words = set(re.findall(r"\w+", context_limited))
+            description_words = set(re.findall(r"\w+", description_limited))
+
+            # Remove common stop words (smaller set for performance)
+            stop_words = {
+                "the",
+                "a",
+                "an",
+                "and",
+                "or",
+                "in",
+                "on",
+                "at",
+                "to",
+                "for",
+                "of",
+                "with",
+                "by",
+            }
+            context_words -= stop_words
+            description_words -= stop_words
+
+            if not context_words or not description_words:
+                return 0.5
+
+            # Quick relevance calculation
+            intersection = context_words.intersection(description_words)
+            if len(intersection) == 0:
+                return 0.3
+
+            relevance = len(intersection) / min(len(context_words), len(description_words))
+            return min(0.3 + relevance * 0.7, 1.0)  # More conservative scaling
+
+        except Exception:
+            return 0.5
+
+    def _calibrate_confidence(self, raw_score: float) -> float:
+        """Apply confidence calibration to raw scores."""
+        # Apply sigmoid-like calibration to spread out the scores
+        if raw_score < 0.3:
+            return raw_score * 0.5  # Reduce very low scores
+        elif raw_score > 0.8:
+            return 0.8 + (raw_score - 0.8) * 0.5  # Cap very high scores
+        else:
+            # Apply smooth transformation for middle range
+            return 0.3 + (raw_score - 0.3) * 1.0
 
     def save(self, path):
         """Save ReLiK reader model"""

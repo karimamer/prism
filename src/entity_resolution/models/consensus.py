@@ -1,19 +1,24 @@
+from enum import Enum
+from typing import Any, Dict, List, Optional, Tuple, Union
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import List, Dict, Tuple, Optional, Any, Union
 from pydantic import BaseModel
-import numpy as np
-from enum import Enum
+
 
 class ExtractionMethod(Enum):
     """Different extraction methods for consensus resolution."""
+
     RELIK = "relik"
     ATG = "atg"
     CONSENSUS = "consensus"
 
+
 class EntityPrediction(BaseModel):
     """Data class for entity predictions from different linkers."""
+
     entity_id: str
     entity_name: str
     confidence: float
@@ -22,13 +27,16 @@ class EntityPrediction(BaseModel):
     mention_span: Optional[Tuple[int, int]] = None
     extraction_method: Optional[ExtractionMethod] = None
 
+
 class MethodPrediction(BaseModel):
     """Predictions from a specific extraction method."""
+
     method: ExtractionMethod
     entities: List[EntityPrediction]
     relations: List[Tuple[EntityPrediction, EntityPrediction, str]]
     confidence: float
     reasoning: str
+
 
 class DualPerspectiveEntityLinker(nn.Module):
     """
@@ -39,6 +47,7 @@ class DualPerspectiveEntityLinker(nn.Module):
     - Contextual: Uses context and CoT reasoning
     - Prior: Uses inherent prior knowledge without context
     """
+
     def __init__(self, hidden_size=768):
         super().__init__()
         self.hidden_size = hidden_size
@@ -51,7 +60,7 @@ class DualPerspectiveEntityLinker(nn.Module):
             nn.Linear(hidden_size, hidden_size // 2),
             nn.ReLU(),
             nn.Linear(hidden_size // 2, 1),
-            nn.Sigmoid()
+            nn.Sigmoid(),
         )
 
         # Prior entity linker (uses only mention + entity, no context)
@@ -62,14 +71,14 @@ class DualPerspectiveEntityLinker(nn.Module):
             nn.Linear(hidden_size, hidden_size // 2),
             nn.ReLU(),
             nn.Linear(hidden_size // 2, 1),
-            nn.Sigmoid()
+            nn.Sigmoid(),
         )
 
     def forward_contextual(
         self,
         mention_embedding: torch.Tensor,
         context_embedding: torch.Tensor,
-        entity_embeddings: torch.Tensor
+        entity_embeddings: torch.Tensor,
     ) -> torch.Tensor:
         """
         Contextual linker forward pass using context and CoT reasoning.
@@ -103,9 +112,7 @@ class DualPerspectiveEntityLinker(nn.Module):
         return contextual_scores
 
     def forward_prior(
-        self,
-        mention_embedding: torch.Tensor,
-        entity_embeddings: torch.Tensor
+        self, mention_embedding: torch.Tensor, entity_embeddings: torch.Tensor
     ) -> torch.Tensor:
         """
         Prior linker forward pass using only inherent knowledge.
@@ -141,7 +148,7 @@ class DualPerspectiveEntityLinker(nn.Module):
         mention_embedding: torch.Tensor,
         context_embedding: torch.Tensor,
         entity_embeddings: torch.Tensor,
-        entity_names: List[str]
+        entity_names: List[str],
     ) -> Tuple[EntityPrediction, EntityPrediction]:
         """
         Generate predictions from both contextual and prior linkers.
@@ -161,9 +168,7 @@ class DualPerspectiveEntityLinker(nn.Module):
         )
 
         # Get prior scores
-        prior_scores = self.forward_prior(
-            mention_embedding, entity_embeddings
-        )
+        prior_scores = self.forward_prior(mention_embedding, entity_embeddings)
 
         # Get best predictions from each linker
         contextual_idx = torch.argmax(contextual_scores, dim=1)[0].item()
@@ -171,21 +176,26 @@ class DualPerspectiveEntityLinker(nn.Module):
 
         contextual_pred = EntityPrediction(
             entity_id=f"entity_{contextual_idx}",
-            entity_name=entity_names[contextual_idx] if contextual_idx < len(entity_names) else f"entity_{contextual_idx}",
+            entity_name=entity_names[contextual_idx]
+            if contextual_idx < len(entity_names)
+            else f"entity_{contextual_idx}",
             confidence=contextual_scores[0, contextual_idx].item(),
             linker_type="contextual",
-            reasoning="Context-aware inference with CoT reasoning"
+            reasoning="Context-aware inference with CoT reasoning",
         )
 
         prior_pred = EntityPrediction(
             entity_id=f"entity_{prior_idx}",
-            entity_name=entity_names[prior_idx] if prior_idx < len(entity_names) else f"entity_{prior_idx}",
+            entity_name=entity_names[prior_idx]
+            if prior_idx < len(entity_names)
+            else f"entity_{prior_idx}",
             confidence=prior_scores[0, prior_idx].item(),
             linker_type="prior",
-            reasoning="Prior knowledge without contextual influence"
+            reasoning="Prior knowledge without contextual influence",
         )
 
         return contextual_pred, prior_pred
+
 
 class EntityConsensusJudger(nn.Module):
     """
@@ -194,19 +204,22 @@ class EntityConsensusJudger(nn.Module):
     This module resolves conflicts between contextual and prior linker predictions
     using a sophisticated consensus mechanism with auxiliary LLM support.
     """
+
     def __init__(self, hidden_size=768):
         super().__init__()
         self.hidden_size = hidden_size
 
         # Auxiliary decision network (simulates auxiliary LLM)
         self.auxiliary_judge = nn.Sequential(
-            nn.Linear(hidden_size * 4 + 2, hidden_size),  # 2 entities + 2 confidences + mention + context
+            nn.Linear(
+                hidden_size * 4 + 2, hidden_size
+            ),  # 2 entities + 2 confidences + mention + context
             nn.ReLU(),
             nn.Dropout(0.1),
             nn.Linear(hidden_size, hidden_size // 2),
             nn.ReLU(),
             nn.Linear(hidden_size // 2, 2),  # Binary choice: 0=contextual, 1=prior
-            nn.Softmax(dim=-1)
+            nn.Softmax(dim=-1),
         )
 
         # Confidence reconciliation network
@@ -216,13 +229,11 @@ class EntityConsensusJudger(nn.Module):
             nn.Linear(16, 8),
             nn.ReLU(),
             nn.Linear(8, 1),
-            nn.Sigmoid()
+            nn.Sigmoid(),
         )
 
     def detect_concurrence(
-        self,
-        contextual_pred: EntityPrediction,
-        prior_pred: EntityPrediction
+        self, contextual_pred: EntityPrediction, prior_pred: EntityPrediction
     ) -> bool:
         """
         Detect if contextual and prior predictions are in concurrence.
@@ -242,7 +253,7 @@ class EntityConsensusJudger(nn.Module):
         prior_pred: EntityPrediction,
         mention_embedding: torch.Tensor,
         context_embedding: torch.Tensor,
-        entity_embeddings: torch.Tensor
+        entity_embeddings: torch.Tensor,
     ) -> EntityPrediction:
         """
         Resolve discordance between predictions using auxiliary judge.
@@ -258,21 +269,23 @@ class EntityConsensusJudger(nn.Module):
             Final resolved prediction
         """
         # Extract entity embeddings for the two predictions
-        contextual_idx = int(contextual_pred.entity_id.split('_')[1])
-        prior_idx = int(prior_pred.entity_id.split('_')[1])
+        contextual_idx = int(contextual_pred.entity_id.split("_")[1])
+        prior_idx = int(prior_pred.entity_id.split("_")[1])
 
         contextual_entity_emb = entity_embeddings[0, contextual_idx, :]
         prior_entity_emb = entity_embeddings[0, prior_idx, :]
 
         # Prepare input for auxiliary judge
-        aux_input = torch.cat([
-            mention_embedding.squeeze(0),
-            context_embedding.squeeze(0),
-            contextual_entity_emb,
-            prior_entity_emb,
-            torch.tensor([contextual_pred.confidence], device=mention_embedding.device),
-            torch.tensor([prior_pred.confidence], device=mention_embedding.device)
-        ])
+        aux_input = torch.cat(
+            [
+                mention_embedding.squeeze(0),
+                context_embedding.squeeze(0),
+                contextual_entity_emb,
+                prior_entity_emb,
+                torch.tensor([contextual_pred.confidence], device=mention_embedding.device),
+                torch.tensor([prior_pred.confidence], device=mention_embedding.device),
+            ]
+        )
 
         # Get auxiliary judgment
         aux_decision = self.auxiliary_judge(aux_input.unsqueeze(0))
@@ -285,17 +298,24 @@ class EntityConsensusJudger(nn.Module):
         else:
             # Choose prior prediction
             chosen_pred = prior_pred
-            reasoning = f"Auxiliary judge favored prior prediction (score: {aux_decision[0, 1].item():.3f})"
+            reasoning = (
+                f"Auxiliary judge favored prior prediction (score: {aux_decision[0, 1].item():.3f})"
+            )
 
         # Reconcile confidence using both predictions
-        confidence_features = torch.tensor([
-            contextual_pred.confidence,
-            prior_pred.confidence,
-            aux_decision[0, 0].item(),  # Auxiliary confidence for contextual
-            aux_decision[0, 1].item()   # Auxiliary confidence for prior
-        ], device=mention_embedding.device)
+        confidence_features = torch.tensor(
+            [
+                contextual_pred.confidence,
+                prior_pred.confidence,
+                aux_decision[0, 0].item(),  # Auxiliary confidence for contextual
+                aux_decision[0, 1].item(),  # Auxiliary confidence for prior
+            ],
+            device=mention_embedding.device,
+        )
 
-        reconciled_confidence = self.confidence_reconciler(confidence_features.unsqueeze(0))[0, 0].item()
+        reconciled_confidence = self.confidence_reconciler(confidence_features.unsqueeze(0))[
+            0, 0
+        ].item()
 
         # Create final prediction with reconciled confidence
         final_pred = EntityPrediction(
@@ -303,7 +323,7 @@ class EntityConsensusJudger(nn.Module):
             entity_name=chosen_pred.entity_name,
             confidence=reconciled_confidence,
             linker_type="consensus",
-            reasoning=reasoning
+            reasoning=reasoning,
         )
 
         return final_pred
@@ -314,7 +334,7 @@ class EntityConsensusJudger(nn.Module):
         prior_pred: EntityPrediction,
         mention_embedding: torch.Tensor,
         context_embedding: torch.Tensor,
-        entity_embeddings: torch.Tensor
+        entity_embeddings: torch.Tensor,
     ) -> EntityPrediction:
         """
         Main consensus judging function implementing OneNet's consistency algorithm.
@@ -340,16 +360,16 @@ class EntityConsensusJudger(nn.Module):
                 entity_name=contextual_pred.entity_name,
                 confidence=combined_confidence,
                 linker_type="consensus",
-                reasoning="Contextual and prior linkers in full agreement"
+                reasoning="Contextual and prior linkers in full agreement",
             )
         else:
             # Discordance: resolve using auxiliary judge
             final_pred = self.resolve_discordance(
-                contextual_pred, prior_pred,
-                mention_embedding, context_embedding, entity_embeddings
+                contextual_pred, prior_pred, mention_embedding, context_embedding, entity_embeddings
             )
 
         return final_pred
+
 
 class ConsensusModule(nn.Module):
     """
@@ -360,6 +380,7 @@ class ConsensusModule(nn.Module):
     - Entity Consensus Judger (ECJ)
     - Sophisticated conflict resolution
     """
+
     def __init__(self, hidden_size=768, threshold=0.6):
         super().__init__()
 
@@ -372,11 +393,7 @@ class ConsensusModule(nn.Module):
 
         # Legacy components for backward compatibility
         self.confidence_calibration = nn.Sequential(
-            nn.Linear(3, 16),
-            nn.ReLU(),
-            nn.Dropout(0.1),
-            nn.Linear(16, 1),
-            nn.Sigmoid()
+            nn.Linear(3, 16), nn.ReLU(), nn.Dropout(0.1), nn.Linear(16, 1), nn.Sigmoid()
         )
 
         # Span-level conflict resolution
@@ -385,7 +402,7 @@ class ConsensusModule(nn.Module):
             nn.ReLU(),
             nn.Dropout(0.1),
             nn.Linear(hidden_size, 1),
-            nn.Sigmoid()
+            nn.Sigmoid(),
         )
 
     def calibrate_confidence(self, entity_scores):
@@ -403,7 +420,7 @@ class ConsensusModule(nn.Module):
             scores = [
                 entity_scores.get("mention_score", 0.5),
                 entity_scores.get("entity_score", 0.5),
-                entity_scores.get("context_score", 0.5)
+                entity_scores.get("context_score", 0.5),
             ]
             scores_tensor = torch.tensor(scores, device=next(self.parameters()).device).float()
         else:
@@ -462,8 +479,24 @@ class ConsensusModule(nn.Module):
         Returns:
             List of entity groups
         """
-        # Sort entities by span start position
-        sorted_entities = sorted(entities, key=lambda e: e["mention_span"][0])
+        # Filter entities that have mention_span and sort by start position
+        entities_with_spans = []
+        for entity in entities:
+            if "mention_span" in entity and entity["mention_span"] is not None:
+                entities_with_spans.append(entity)
+            elif "start" in entity and "end" in entity:
+                # Convert start/end fields to mention_span
+                entity["mention_span"] = [entity["start"], entity["end"]]
+                entities_with_spans.append(entity)
+            else:
+                # Skip entities without span information
+                logger.warning(f"Entity missing span information: {entity}")
+                continue
+
+        if not entities_with_spans:
+            return []
+
+        sorted_entities = sorted(entities_with_spans, key=lambda e: e["mention_span"][0])
 
         # Group overlapping spans
         groups = []
@@ -515,8 +548,10 @@ class ConsensusModule(nn.Module):
         embs = torch.stack(embs)
 
         # Get confidence scores
-        conf_scores = torch.tensor([entity.get("confidence", 0.5) for entity in entities],
-                                  device=next(self.parameters()).device)
+        conf_scores = torch.tensor(
+            [entity.get("confidence", 0.5) for entity in entities],
+            device=next(self.parameters()).device,
+        )
 
         # Combine embeddings and confidence scores
         combined = torch.cat([embs, conf_scores.unsqueeze(1).expand(-1, self.hidden_size)], dim=1)
@@ -535,7 +570,7 @@ class ConsensusModule(nn.Module):
         mention_embeddings: torch.Tensor,
         context_embeddings: torch.Tensor,
         entity_embeddings: torch.Tensor,
-        entity_names: List[str]
+        entity_names: List[str],
     ) -> List[EntityPrediction]:
         """
         Resolve entities using OneNet's dual-perspective approach.
@@ -554,8 +589,8 @@ class ConsensusModule(nn.Module):
 
         for i, mention in enumerate(mentions):
             # Get embeddings for this mention
-            mention_emb = mention_embeddings[i:i+1]  # Keep batch dimension
-            context_emb = context_embeddings[i:i+1]  # Keep batch dimension
+            mention_emb = mention_embeddings[i : i + 1]  # Keep batch dimension
+            context_emb = context_embeddings[i : i + 1]  # Keep batch dimension
 
             # Get dual predictions
             contextual_pred, prior_pred = self.dual_linker.predict_dual(
@@ -564,8 +599,7 @@ class ConsensusModule(nn.Module):
 
             # Use consensus judger to resolve
             final_pred = self.consensus_judger.judge_consensus(
-                contextual_pred, prior_pred,
-                mention_emb, context_emb, entity_embeddings
+                contextual_pred, prior_pred, mention_emb, context_emb, entity_embeddings
             )
 
             # Filter by confidence threshold
@@ -591,7 +625,7 @@ class ConsensusModule(nn.Module):
                 scores = {
                     "mention_score": entity.get("mention_score", 0.5),
                     "entity_score": entity.get("entity_score", 0.5),
-                    "context_score": entity.get("context_score", 0.5)
+                    "context_score": entity.get("context_score", 0.5),
                 }
                 entity["confidence"] = self.calibrate_confidence(scores).item()
 
@@ -655,7 +689,7 @@ class ConsensusModule(nn.Module):
         context_embeddings=None,
         entity_embeddings=None,
         entity_names=None,
-        use_onenet=True
+        use_onenet=True,
     ):
         """
         Forward pass for consensus module.
@@ -676,8 +710,7 @@ class ConsensusModule(nn.Module):
         if use_onenet and mentions is not None and mention_embeddings is not None:
             # Use OneNet approach
             return self.resolve_entities_onenet(
-                mentions, mention_embeddings, context_embeddings,
-                entity_embeddings, entity_names
+                mentions, mention_embeddings, context_embeddings, entity_embeddings, entity_names
             )
         else:
             # Use legacy approach
@@ -687,7 +720,7 @@ class ConsensusModule(nn.Module):
         self,
         relik_prediction: Optional[MethodPrediction] = None,
         atg_prediction: Optional[MethodPrediction] = None,
-        context_embedding: Optional[torch.Tensor] = None
+        context_embedding: Optional[torch.Tensor] = None,
     ) -> MethodPrediction:
         """
         Resolve predictions from multiple extraction methods.
@@ -707,7 +740,7 @@ class ConsensusModule(nn.Module):
                 entities=[],
                 relations=[],
                 confidence=0.0,
-                reasoning="No predictions provided"
+                reasoning="No predictions provided",
             )
 
         elif relik_prediction is None:
@@ -738,7 +771,7 @@ class ConsensusModule(nn.Module):
                 entities=chosen_pred.entities,
                 relations=chosen_pred.relations,
                 confidence=(relik_prediction.confidence + atg_prediction.confidence) / 2,
-                reasoning=f"Simple consensus: {reasoning}"
+                reasoning=f"Simple consensus: {reasoning}",
             )
 
             return consensus_pred
@@ -748,7 +781,7 @@ class ConsensusModule(nn.Module):
         predictions: List[EntityPrediction],
         gold_entities: List[Dict],
         contextual_scores: torch.Tensor,
-        prior_scores: torch.Tensor
+        prior_scores: torch.Tensor,
     ) -> Dict[str, torch.Tensor]:
         """
         Compute losses for OneNet training.
@@ -773,11 +806,13 @@ class ConsensusModule(nn.Module):
             # Convert predictions to format for loss computation
             pred_entities = []
             for pred in predictions:
-                pred_entities.append({
-                    "mention": "",  # Would need mention text
-                    "entity_id": pred.entity_id,
-                    "confidence": pred.confidence
-                })
+                pred_entities.append(
+                    {
+                        "mention": "",  # Would need mention text
+                        "entity_id": pred.entity_id,
+                        "confidence": pred.confidence,
+                    }
+                )
 
             consensus_loss = self.loss(pred_entities, gold_entities)
 
@@ -792,19 +827,29 @@ class ConsensusModule(nn.Module):
                 prior_targets = torch.zeros_like(prior_scores)
                 prior_loss = F.binary_cross_entropy(prior_scores, prior_targets)
 
-        losses.update({
-            "consensus_loss": consensus_loss if isinstance(consensus_loss, torch.Tensor) else torch.tensor(consensus_loss),
-            "contextual_loss": contextual_loss if isinstance(contextual_loss, torch.Tensor) else torch.tensor(contextual_loss),
-            "prior_loss": prior_loss if isinstance(prior_loss, torch.Tensor) else torch.tensor(prior_loss),
-            "total_loss": (consensus_loss + contextual_loss + prior_loss) if all(isinstance(x, torch.Tensor) for x in [consensus_loss, contextual_loss, prior_loss]) else torch.tensor(0.0)
-        })
+        losses.update(
+            {
+                "consensus_loss": consensus_loss
+                if isinstance(consensus_loss, torch.Tensor)
+                else torch.tensor(consensus_loss),
+                "contextual_loss": contextual_loss
+                if isinstance(contextual_loss, torch.Tensor)
+                else torch.tensor(contextual_loss),
+                "prior_loss": prior_loss
+                if isinstance(prior_loss, torch.Tensor)
+                else torch.tensor(prior_loss),
+                "total_loss": (consensus_loss + contextual_loss + prior_loss)
+                if all(
+                    isinstance(x, torch.Tensor)
+                    for x in [consensus_loss, contextual_loss, prior_loss]
+                )
+                else torch.tensor(0.0),
+            }
+        )
 
         return losses
 
-    def create_method_prediction_from_relik(
-        self,
-        relik_results: Dict
-    ) -> MethodPrediction:
+    def create_method_prediction_from_relik(self, relik_results: Dict) -> MethodPrediction:
         """
         Convert ReLiK results to MethodPrediction format.
 
@@ -818,12 +863,13 @@ class ConsensusModule(nn.Module):
 
         # Convert ReLiK entities
         if "mention_spans" in relik_results and "best_entities" in relik_results:
-            for i, (span, entity_idx) in enumerate(zip(
-                relik_results["mention_spans"],
-                relik_results["best_entities"]
-            )):
+            for i, (span, entity_idx) in enumerate(
+                zip(relik_results["mention_spans"], relik_results["best_entities"])
+            ):
                 confidence = 0.5  # Default confidence
-                if "entity_linking_probs" in relik_results and i < len(relik_results["entity_linking_probs"]):
+                if "entity_linking_probs" in relik_results and i < len(
+                    relik_results["entity_linking_probs"]
+                ):
                     confidence = relik_results["entity_linking_probs"][i].max().item()
 
                 entity = EntityPrediction(
@@ -833,7 +879,7 @@ class ConsensusModule(nn.Module):
                     linker_type="relik",
                     reasoning="ReLiK span-based prediction",
                     mention_span=span,
-                    extraction_method=ExtractionMethod.RELIK
+                    extraction_method=ExtractionMethod.RELIK,
                 )
                 entities.append(entity)
 
@@ -851,13 +897,10 @@ class ConsensusModule(nn.Module):
             entities=entities,
             relations=relations,
             confidence=avg_confidence,
-            reasoning="ReLiK span-based entity linking with start/end token prediction"
+            reasoning="ReLiK span-based entity linking with start/end token prediction",
         )
 
-    def create_method_prediction_from_atg(
-        self,
-        atg_results
-    ) -> MethodPrediction:
+    def create_method_prediction_from_atg(self, atg_results) -> MethodPrediction:
         """
         Convert ATG results to MethodPrediction format.
 
@@ -878,7 +921,7 @@ class ConsensusModule(nn.Module):
                 linker_type="atg",
                 reasoning="ATG autoregressive text-to-graph generation",
                 mention_span=(span_repr.start, span_repr.end),
-                extraction_method=ExtractionMethod.ATG
+                extraction_method=ExtractionMethod.ATG,
             )
             entities.append(entity)
 
@@ -892,7 +935,7 @@ class ConsensusModule(nn.Module):
                 confidence=0.8,
                 linker_type="atg",
                 mention_span=(head.start, head.end),
-                extraction_method=ExtractionMethod.ATG
+                extraction_method=ExtractionMethod.ATG,
             )
             tail_entity = EntityPrediction(
                 entity_id=f"tail_{tail.start}_{tail.end}",
@@ -900,17 +943,21 @@ class ConsensusModule(nn.Module):
                 confidence=0.8,
                 linker_type="atg",
                 mention_span=(tail.start, tail.end),
-                extraction_method=ExtractionMethod.ATG
+                extraction_method=ExtractionMethod.ATG,
             )
             relations.append((head_entity, tail_entity, rel_type))
 
         # Compute overall confidence
-        avg_confidence = sum(s for s in atg_results.generation_scores) / len(atg_results.generation_scores) if atg_results.generation_scores else 0.8
+        avg_confidence = (
+            sum(s for s in atg_results.generation_scores) / len(atg_results.generation_scores)
+            if atg_results.generation_scores
+            else 0.8
+        )
 
         return MethodPrediction(
             method=ExtractionMethod.ATG,
             entities=entities,
             relations=relations,
             confidence=avg_confidence,
-            reasoning="ATG autoregressive generation with dynamic vocabulary and constrained decoding"
+            reasoning="ATG autoregressive generation with dynamic vocabulary and constrained decoding",
         )

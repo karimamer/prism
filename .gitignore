@@ -48,6 +48,7 @@ dmypy.json
 
 # Project-specific
 sketch.md
+sketch/
 results.json
 test_input.txt
 test_output.json

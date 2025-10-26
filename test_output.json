@@ -1,46 +1,1982 @@
 [
   {
     "text": "Apple Inc. was founded by Steve Jobs, Steve Wozniak, and Ronald Wayne in 1976.",
-    "entities": []
+    "entities": [],
+    "relations": [],
+    "model_predictions": {
+      "atg": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "relik": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "spel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "failed",
+        "error_message": "local variable 'entities' referenced before assignment",
+        "processing_time": null
+      },
+      "unirel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "reader": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      }
+    },
+    "models_used": [
+      "atg",
+      "relik",
+      "spel",
+      "unirel",
+      "reader"
+    ],
+    "pipeline_stages": {
+      "entity_encoding": false,
+      "candidate_generation": false,
+      "cross_model_resolution": true,
+      "consensus_linking": false,
+      "structured_output": true
+    },
+    "num_entities": 0,
+    "num_relations": 0,
+    "num_candidates": 0,
+    "consensus_method": "multi_method_weighted",
+    "processing_timestamp": "2025-10-26T09:10:30.410655"
   },
   {
     "text": "The United Nations has its headquarters in New York City.",
-    "entities": []
+    "entities": [],
+    "relations": [],
+    "model_predictions": {
+      "atg": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "relik": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "spel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "failed",
+        "error_message": "local variable 'entities' referenced before assignment",
+        "processing_time": null
+      },
+      "unirel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "reader": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      }
+    },
+    "models_used": [
+      "atg",
+      "relik",
+      "spel",
+      "unirel",
+      "reader"
+    ],
+    "pipeline_stages": {
+      "entity_encoding": false,
+      "candidate_generation": false,
+      "cross_model_resolution": true,
+      "consensus_linking": false,
+      "structured_output": true
+    },
+    "num_entities": 0,
+    "num_relations": 0,
+    "num_candidates": 0,
+    "consensus_method": "multi_method_weighted",
+    "processing_timestamp": "2025-10-26T09:10:30.586363"
   },
   {
     "text": "Manchester United Football Club, commonly referred to as Man United (often stylised as Man Utd), is a professional football club based in Old Trafford, Greater Manchester, England. They compete in the Premier League, the top tier of English football. Nicknamed the Red Devils, they were founded as Newton Heath LYR Football Club in 1878, but changed their name to Manchester United in 1902. After a spell playing in Clayton, Manchester, the club moved to their current stadium, Old Trafford, in 1910.",
-    "entities": []
+    "entities": [],
+    "relations": [],
+    "model_predictions": {
+      "atg": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "relik": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "spel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "failed",
+        "error_message": "local variable 'entities' referenced before assignment",
+        "processing_time": null
+      },
+      "unirel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "reader": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      }
+    },
+    "models_used": [
+      "atg",
+      "relik",
+      "spel",
+      "unirel",
+      "reader"
+    ],
+    "pipeline_stages": {
+      "entity_encoding": false,
+      "candidate_generation": false,
+      "cross_model_resolution": true,
+      "consensus_linking": false,
+      "structured_output": true
+    },
+    "num_entities": 0,
+    "num_relations": 0,
+    "num_candidates": 0,
+    "consensus_method": "multi_method_weighted",
+    "processing_timestamp": "2025-10-26T09:10:31.297474"
   },
   {
     "text": "Domestically, Manchester United have won a record 20 top-flight league titles, 13 FA Cups, 6 League Cups and a record 21 FA Community Shields. Additionally, in international football, they have won the European Cup/UEFA Champions League three times, and the UEFA Europa League, the UEFA Cup Winners' Cup, the UEFA Super Cup, the Intercontinental Cup and the FIFA Club World Cup once each.[7][8] Appointed as manager in 1945, Matt Busby built a team with an average age of just 22 nicknamed the Busby Babes that won successive league titles in the 1950s and became the first English club to compete in the European Cup. Eight players were killed in the Munich air disaster, but Busby rebuilt the team around star players George Best, Denis Law and Bobby Charlton \u2013 known as the United Trinity. They won two more league titles before becoming the first English club to win the European Cup in 1968.",
-    "entities": []
+    "entities": [],
+    "relations": [],
+    "model_predictions": {
+      "atg": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "relik": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "spel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "failed",
+        "error_message": "local variable 'entities' referenced before assignment",
+        "processing_time": null
+      },
+      "unirel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "reader": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      }
+    },
+    "models_used": [
+      "atg",
+      "relik",
+      "spel",
+      "unirel",
+      "reader"
+    ],
+    "pipeline_stages": {
+      "entity_encoding": false,
+      "candidate_generation": false,
+      "cross_model_resolution": true,
+      "consensus_linking": false,
+      "structured_output": true
+    },
+    "num_entities": 0,
+    "num_relations": 0,
+    "num_candidates": 0,
+    "consensus_method": "multi_method_weighted",
+    "processing_timestamp": "2025-10-26T09:10:32.996028"
   },
   {
     "text": "Zinedine Yazid Zidane, popularly known as Zizou, is a French professional football manager and former player who played as an attacking midfielder. He most recently coached La Liga club Real Madrid and is one of the most successful coaches in the world",
-    "entities": []
+    "entities": [],
+    "relations": [],
+    "model_predictions": {
+      "atg": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "relik": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "spel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "failed",
+        "error_message": "local variable 'entities' referenced before assignment",
+        "processing_time": null
+      },
+      "unirel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "reader": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      }
+    },
+    "models_used": [
+      "atg",
+      "relik",
+      "spel",
+      "unirel",
+      "reader"
+    ],
+    "pipeline_stages": {
+      "entity_encoding": false,
+      "candidate_generation": false,
+      "cross_model_resolution": true,
+      "consensus_linking": false,
+      "structured_output": true
+    },
+    "num_entities": 0,
+    "num_relations": 0,
+    "num_candidates": 0,
+    "consensus_method": "multi_method_weighted",
+    "processing_timestamp": "2025-10-26T09:10:33.330546"
   },
   {
     "text": "When Noah Lyles put his spike into Stade de France\u2019s purple track for his first stride Sunday night of the Paris Olympics 100-meter final, he was already behind. In an event in which margin for error is slimmest, his reaction time to the starting gun was the slowest.",
-    "entities": []
+    "entities": [],
+    "relations": [],
+    "model_predictions": {
+      "atg": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "relik": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "spel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "failed",
+        "error_message": "local variable 'entities' referenced before assignment",
+        "processing_time": null
+      },
+      "unirel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "reader": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      }
+    },
+    "models_used": [
+      "atg",
+      "relik",
+      "spel",
+      "unirel",
+      "reader"
+    ],
+    "pipeline_stages": {
+      "entity_encoding": false,
+      "candidate_generation": false,
+      "cross_model_resolution": true,
+      "consensus_linking": false,
+      "structured_output": true
+    },
+    "num_entities": 0,
+    "num_relations": 0,
+    "num_candidates": 0,
+    "consensus_method": "multi_method_weighted",
+    "processing_timestamp": "2025-10-26T09:10:33.723731"
   },
   {
     "text": "Halfway through, Lyles, 27, of the U.S., was still in seventh place in an eight-man field, trying to chase down Jamaica\u2019s Kishane Thompson, who owned not only this season\u2019s fastest time but also the fastest time in the semifinal round contested earlier Sunday.",
-    "entities": []
+    "entities": [],
+    "relations": [],
+    "model_predictions": {
+      "atg": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "relik": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "spel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "failed",
+        "error_message": "local variable 'entities' referenced before assignment",
+        "processing_time": null
+      },
+      "unirel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "reader": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      }
+    },
+    "models_used": [
+      "atg",
+      "relik",
+      "spel",
+      "unirel",
+      "reader"
+    ],
+    "pipeline_stages": {
+      "entity_encoding": false,
+      "candidate_generation": false,
+      "cross_model_resolution": true,
+      "consensus_linking": false,
+      "structured_output": true
+    },
+    "num_entities": 0,
+    "num_relations": 0,
+    "num_candidates": 0,
+    "consensus_method": "multi_method_weighted",
+    "processing_timestamp": "2025-10-26T09:10:34.115382"
   },
   {
     "text": "By the final steps Lyles had caught up so much to Thompson, American Fred Kerley and South Africa\u2019s Akani Simbine that he did something he rarely practices \u2014 dipping his shoulder at the finish.",
-    "entities": []
+    "entities": [],
+    "relations": [],
+    "model_predictions": {
+      "atg": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "relik": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "spel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "failed",
+        "error_message": "local variable 'entities' referenced before assignment",
+        "processing_time": null
+      },
+      "unirel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "reader": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      }
+    },
+    "models_used": [
+      "atg",
+      "relik",
+      "spel",
+      "unirel",
+      "reader"
+    ],
+    "pipeline_stages": {
+      "entity_encoding": false,
+      "candidate_generation": false,
+      "cross_model_resolution": true,
+      "consensus_linking": false,
+      "structured_output": true
+    },
+    "num_entities": 0,
+    "num_relations": 0,
+    "num_candidates": 0,
+    "consensus_method": "multi_method_weighted",
+    "processing_timestamp": "2025-10-26T09:10:34.403209"
   },
   {
     "text": "Even then, Lyles was unconvinced he had won the gold medal he had so boldly predicted, and so badly wanted, for three years. The scoreboard offered no indication of who had won gold, silver or bronze as it processed a photo finish, a sold-out, raucous stadium sharing in the uncertainty.",
-    "entities": []
+    "entities": [],
+    "relations": [],
+    "model_predictions": {
+      "atg": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "relik": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "spel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "failed",
+        "error_message": "local variable 'entities' referenced before assignment",
+        "processing_time": null
+      },
+      "unirel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "reader": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      }
+    },
+    "models_used": [
+      "atg",
+      "relik",
+      "spel",
+      "unirel",
+      "reader"
+    ],
+    "pipeline_stages": {
+      "entity_encoding": false,
+      "candidate_generation": false,
+      "cross_model_resolution": true,
+      "consensus_linking": false,
+      "structured_output": true
+    },
+    "num_entities": 0,
+    "num_relations": 0,
+    "num_candidates": 0,
+    "consensus_method": "multi_method_weighted",
+    "processing_timestamp": "2025-10-26T09:10:34.772147"
   },
   {
     "text": "\u201cI think you got that one, big dog,\u201d Lyles told Thompson.",
-    "entities": []
+    "entities": [],
+    "relations": [],
+    "model_predictions": {
+      "atg": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "relik": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "spel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "failed",
+        "error_message": "local variable 'entities' referenced before assignment",
+        "processing_time": null
+      },
+      "unirel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "reader": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      }
+    },
+    "models_used": [
+      "atg",
+      "relik",
+      "spel",
+      "unirel",
+      "reader"
+    ],
+    "pipeline_stages": {
+      "entity_encoding": false,
+      "candidate_generation": false,
+      "cross_model_resolution": true,
+      "consensus_linking": false,
+      "structured_output": true
+    },
+    "num_entities": 0,
+    "num_relations": 0,
+    "num_candidates": 0,
+    "consensus_method": "multi_method_weighted",
+    "processing_timestamp": "2025-10-26T09:10:34.968700"
   },
   {
-    "text": "\u201cI\u2019m not even sure,\u201d Thompson replied. \u201cIt was that close.",
-    "entities": []
+    "text": "\"I'm not even sure,\" Thompson replied. \"It was that close.\"",
+    "entities": [],
+    "relations": [],
+    "model_predictions": {
+      "atg": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "relik": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "spel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "failed",
+        "error_message": "local variable 'entities' referenced before assignment",
+        "processing_time": null
+      },
+      "unirel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "reader": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      }
+    },
+    "models_used": [
+      "atg",
+      "relik",
+      "spel",
+      "unirel",
+      "reader"
+    ],
+    "pipeline_stages": {
+      "entity_encoding": false,
+      "candidate_generation": false,
+      "cross_model_resolution": true,
+      "consensus_linking": false,
+      "structured_output": true
+    },
+    "num_entities": 0,
+    "num_relations": 0,
+    "num_candidates": 0,
+    "consensus_method": "multi_method_weighted",
+    "processing_timestamp": "2025-10-26T09:10:35.160050"
+  },
+  {
+    "text": "Google LLC, headquartered in Mountain View, California, was founded by Larry Page and Sergey Brin while they were PhD students at Stanford University. The company was incorporated in 1998 and went public in 2004.",
+    "entities": [],
+    "relations": [],
+    "model_predictions": {
+      "atg": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "relik": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "spel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "failed",
+        "error_message": "local variable 'entities' referenced before assignment",
+        "processing_time": null
+      },
+      "unirel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "reader": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      }
+    },
+    "models_used": [
+      "atg",
+      "relik",
+      "spel",
+      "unirel",
+      "reader"
+    ],
+    "pipeline_stages": {
+      "entity_encoding": false,
+      "candidate_generation": false,
+      "cross_model_resolution": true,
+      "consensus_linking": false,
+      "structured_output": true
+    },
+    "num_entities": 0,
+    "num_relations": 0,
+    "num_candidates": 0,
+    "consensus_method": "multi_method_weighted",
+    "processing_timestamp": "2025-10-26T09:10:35.460158"
+  },
+  {
+    "text": "Microsoft Corporation, based in Redmond, Washington, was established by Bill Gates and Paul Allen in 1975. The company's headquarters are located in the Microsoft Campus.",
+    "entities": [],
+    "relations": [],
+    "model_predictions": {
+      "atg": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "relik": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "spel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "failed",
+        "error_message": "local variable 'entities' referenced before assignment",
+        "processing_time": null
+      },
+      "unirel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "reader": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      }
+    },
+    "models_used": [
+      "atg",
+      "relik",
+      "spel",
+      "unirel",
+      "reader"
+    ],
+    "pipeline_stages": {
+      "entity_encoding": false,
+      "candidate_generation": false,
+      "cross_model_resolution": true,
+      "consensus_linking": false,
+      "structured_output": true
+    },
+    "num_entities": 0,
+    "num_relations": 0,
+    "num_candidates": 0,
+    "consensus_method": "multi_method_weighted",
+    "processing_timestamp": "2025-10-26T09:10:35.742631"
+  },
+  {
+    "text": "The World Health Organization (WHO) declared COVID-19 a pandemic on March 11, 2020. Dr. Tedros Adhanom Ghebreyesus, the WHO Director-General, made the announcement from Geneva, Switzerland.",
+    "entities": [],
+    "relations": [],
+    "model_predictions": {
+      "atg": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "relik": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "spel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "failed",
+        "error_message": "local variable 'entities' referenced before assignment",
+        "processing_time": null
+      },
+      "unirel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "reader": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      }
+    },
+    "models_used": [
+      "atg",
+      "relik",
+      "spel",
+      "unirel",
+      "reader"
+    ],
+    "pipeline_stages": {
+      "entity_encoding": false,
+      "candidate_generation": false,
+      "cross_model_resolution": true,
+      "consensus_linking": false,
+      "structured_output": true
+    },
+    "num_entities": 0,
+    "num_relations": 0,
+    "num_candidates": 0,
+    "consensus_method": "multi_method_weighted",
+    "processing_timestamp": "2025-10-26T09:10:36.065161"
+  },
+  {
+    "text": "Barack Obama, the 44th President of the United States, was born in Honolulu, Hawaii, and served from 2009 to 2017. His presidency followed George W. Bush and preceded Donald Trump.",
+    "entities": [],
+    "relations": [],
+    "model_predictions": {
+      "atg": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "relik": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "spel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "failed",
+        "error_message": "local variable 'entities' referenced before assignment",
+        "processing_time": null
+      },
+      "unirel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "reader": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      }
+    },
+    "models_used": [
+      "atg",
+      "relik",
+      "spel",
+      "unirel",
+      "reader"
+    ],
+    "pipeline_stages": {
+      "entity_encoding": false,
+      "candidate_generation": false,
+      "cross_model_resolution": true,
+      "consensus_linking": false,
+      "structured_output": true
+    },
+    "num_entities": 0,
+    "num_relations": 0,
+    "num_candidates": 0,
+    "consensus_method": "multi_method_weighted",
+    "processing_timestamp": "2025-10-26T09:10:36.360833"
+  },
+  {
+    "text": "The European Union was established by the Treaty of European Union in 1993, with its headquarters in Brussels, Belgium. The European Central Bank is located in Frankfurt, Germany.",
+    "entities": [],
+    "relations": [],
+    "model_predictions": {
+      "atg": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "relik": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "spel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "failed",
+        "error_message": "local variable 'entities' referenced before assignment",
+        "processing_time": null
+      },
+      "unirel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "reader": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      }
+    },
+    "models_used": [
+      "atg",
+      "relik",
+      "spel",
+      "unirel",
+      "reader"
+    ],
+    "pipeline_stages": {
+      "entity_encoding": false,
+      "candidate_generation": false,
+      "cross_model_resolution": true,
+      "consensus_linking": false,
+      "structured_output": true
+    },
+    "num_entities": 0,
+    "num_relations": 0,
+    "num_candidates": 0,
+    "consensus_method": "multi_method_weighted",
+    "processing_timestamp": "2025-10-26T09:10:36.625900"
+  },
+  {
+    "text": "Amazon Web Services (AWS) was launched in 2006 as a subsidiary of Amazon.com Inc. Jeff Bezos founded Amazon in 1994, and Andy Jassy became CEO of AWS before becoming Amazon's CEO.",
+    "entities": [],
+    "relations": [],
+    "model_predictions": {
+      "atg": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "relik": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "spel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "failed",
+        "error_message": "local variable 'entities' referenced before assignment",
+        "processing_time": null
+      },
+      "unirel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "reader": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      }
+    },
+    "models_used": [
+      "atg",
+      "relik",
+      "spel",
+      "unirel",
+      "reader"
+    ],
+    "pipeline_stages": {
+      "entity_encoding": false,
+      "candidate_generation": false,
+      "cross_model_resolution": true,
+      "consensus_linking": false,
+      "structured_output": true
+    },
+    "num_entities": 0,
+    "num_relations": 0,
+    "num_candidates": 0,
+    "consensus_method": "multi_method_weighted",
+    "processing_timestamp": "2025-10-26T09:10:36.908646"
+  },
+  {
+    "text": "The Nobel Prize in Physics 2021 was awarded to Syukuro Manabe of Princeton University, Klaus Hasselmann of the Max Planck Institute, and Giorgio Parisi of Sapienza University of Rome.",
+    "entities": [],
+    "relations": [],
+    "model_predictions": {
+      "atg": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "relik": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "spel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "failed",
+        "error_message": "local variable 'entities' referenced before assignment",
+        "processing_time": null
+      },
+      "unirel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "reader": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      }
+    },
+    "models_used": [
+      "atg",
+      "relik",
+      "spel",
+      "unirel",
+      "reader"
+    ],
+    "pipeline_stages": {
+      "entity_encoding": false,
+      "candidate_generation": false,
+      "cross_model_resolution": true,
+      "consensus_linking": false,
+      "structured_output": true
+    },
+    "num_entities": 0,
+    "num_relations": 0,
+    "num_candidates": 0,
+    "consensus_method": "multi_method_weighted",
+    "processing_timestamp": "2025-10-26T09:10:37.191803"
+  },
+  {
+    "text": "Tesla, Inc., led by CEO Elon Musk, is headquartered in Austin, Texas. The company was originally founded in 2003 by Martin Eberhard and Marc Tarpenning in San Carlos, California.",
+    "entities": [],
+    "relations": [],
+    "model_predictions": {
+      "atg": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "relik": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "spel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "failed",
+        "error_message": "local variable 'entities' referenced before assignment",
+        "processing_time": null
+      },
+      "unirel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "reader": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      }
+    },
+    "models_used": [
+      "atg",
+      "relik",
+      "spel",
+      "unirel",
+      "reader"
+    ],
+    "pipeline_stages": {
+      "entity_encoding": false,
+      "candidate_generation": false,
+      "cross_model_resolution": true,
+      "consensus_linking": false,
+      "structured_output": true
+    },
+    "num_entities": 0,
+    "num_relations": 0,
+    "num_candidates": 0,
+    "consensus_method": "multi_method_weighted",
+    "processing_timestamp": "2025-10-26T09:10:37.465281"
+  },
+  {
+    "text": "The International Monetary Fund (IMF), established in 1944, has its headquarters in Washington, D.C. Kristalina Georgieva serves as the Managing Director.",
+    "entities": [],
+    "relations": [],
+    "model_predictions": {
+      "atg": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "relik": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "spel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "failed",
+        "error_message": "local variable 'entities' referenced before assignment",
+        "processing_time": null
+      },
+      "unirel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "reader": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      }
+    },
+    "models_used": [
+      "atg",
+      "relik",
+      "spel",
+      "unirel",
+      "reader"
+    ],
+    "pipeline_stages": {
+      "entity_encoding": false,
+      "candidate_generation": false,
+      "cross_model_resolution": true,
+      "consensus_linking": false,
+      "structured_output": true
+    },
+    "num_entities": 0,
+    "num_relations": 0,
+    "num_candidates": 0,
+    "consensus_method": "multi_method_weighted",
+    "processing_timestamp": "2025-10-26T09:10:37.741414"
+  },
+  {
+    "text": "Harvard University, located in Cambridge, Massachusetts, was founded in 1636. Notable alumni include John Adams, Franklin D. Roosevelt, and Mark Zuckerberg.",
+    "entities": [],
+    "relations": [],
+    "model_predictions": {
+      "atg": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "relik": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "spel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "failed",
+        "error_message": "local variable 'entities' referenced before assignment",
+        "processing_time": null
+      },
+      "unirel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "reader": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      }
+    },
+    "models_used": [
+      "atg",
+      "relik",
+      "spel",
+      "unirel",
+      "reader"
+    ],
+    "pipeline_stages": {
+      "entity_encoding": false,
+      "candidate_generation": false,
+      "cross_model_resolution": true,
+      "consensus_linking": false,
+      "structured_output": true
+    },
+    "num_entities": 0,
+    "num_relations": 0,
+    "num_candidates": 0,
+    "consensus_method": "multi_method_weighted",
+    "processing_timestamp": "2025-10-26T09:10:38.000298"
+  },
+  {
+    "text": "The Paris Agreement on climate change was adopted in 2015 during COP21, held in Paris, France. The agreement entered into force on November 4, 2016.",
+    "entities": [],
+    "relations": [],
+    "model_predictions": {
+      "atg": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "relik": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "spel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "failed",
+        "error_message": "local variable 'entities' referenced before assignment",
+        "processing_time": null
+      },
+      "unirel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "reader": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      }
+    },
+    "models_used": [
+      "atg",
+      "relik",
+      "spel",
+      "unirel",
+      "reader"
+    ],
+    "pipeline_stages": {
+      "entity_encoding": false,
+      "candidate_generation": false,
+      "cross_model_resolution": true,
+      "consensus_linking": false,
+      "structured_output": true
+    },
+    "num_entities": 0,
+    "num_relations": 0,
+    "num_candidates": 0,
+    "consensus_method": "multi_method_weighted",
+    "processing_timestamp": "2025-10-26T09:10:38.273572"
+  },
+  {
+    "text": "Netflix, founded by Reed Hastings and Marc Randolph in 1997, is based in Los Gatos, California. The company transformed from a DVD-by-mail service to a global streaming platform.",
+    "entities": [],
+    "relations": [],
+    "model_predictions": {
+      "atg": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "relik": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "spel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "failed",
+        "error_message": "local variable 'entities' referenced before assignment",
+        "processing_time": null
+      },
+      "unirel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "reader": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      }
+    },
+    "models_used": [
+      "atg",
+      "relik",
+      "spel",
+      "unirel",
+      "reader"
+    ],
+    "pipeline_stages": {
+      "entity_encoding": false,
+      "candidate_generation": false,
+      "cross_model_resolution": true,
+      "consensus_linking": false,
+      "structured_output": true
+    },
+    "num_entities": 0,
+    "num_relations": 0,
+    "num_candidates": 0,
+    "consensus_method": "multi_method_weighted",
+    "processing_timestamp": "2025-10-26T09:10:38.561600"
+  },
+  {
+    "text": "The Bank of England, the central bank of the United Kingdom, was established in 1694 and is located on Threadneedle Street in the City of London.",
+    "entities": [],
+    "relations": [],
+    "model_predictions": {
+      "atg": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "relik": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "spel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "failed",
+        "error_message": "local variable 'entities' referenced before assignment",
+        "processing_time": null
+      },
+      "unirel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "reader": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      }
+    },
+    "models_used": [
+      "atg",
+      "relik",
+      "spel",
+      "unirel",
+      "reader"
+    ],
+    "pipeline_stages": {
+      "entity_encoding": false,
+      "candidate_generation": false,
+      "cross_model_resolution": true,
+      "consensus_linking": false,
+      "structured_output": true
+    },
+    "num_entities": 0,
+    "num_relations": 0,
+    "num_candidates": 0,
+    "consensus_method": "multi_method_weighted",
+    "processing_timestamp": "2025-10-26T09:10:38.833942"
+  },
+  {
+    "text": "SpaceX, founded by Elon Musk in 2002, achieved its first successful orbital launch with Falcon 1 in 2008. The company's headquarters are in Hawthorne, California.",
+    "entities": [],
+    "relations": [],
+    "model_predictions": {
+      "atg": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "relik": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "spel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "failed",
+        "error_message": "local variable 'entities' referenced before assignment",
+        "processing_time": null
+      },
+      "unirel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "reader": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      }
+    },
+    "models_used": [
+      "atg",
+      "relik",
+      "spel",
+      "unirel",
+      "reader"
+    ],
+    "pipeline_stages": {
+      "entity_encoding": false,
+      "candidate_generation": false,
+      "cross_model_resolution": true,
+      "consensus_linking": false,
+      "structured_output": true
+    },
+    "num_entities": 0,
+    "num_relations": 0,
+    "num_candidates": 0,
+    "consensus_method": "multi_method_weighted",
+    "processing_timestamp": "2025-10-26T09:10:39.084769"
+  },
+  {
+    "text": "The United Nations Climate Change Conference COP26 was held in Glasgow, Scotland, from October 31 to November 12, 2021, under the UK presidency.",
+    "entities": [],
+    "relations": [],
+    "model_predictions": {
+      "atg": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "relik": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "spel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "failed",
+        "error_message": "local variable 'entities' referenced before assignment",
+        "processing_time": null
+      },
+      "unirel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "reader": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      }
+    },
+    "models_used": [
+      "atg",
+      "relik",
+      "spel",
+      "unirel",
+      "reader"
+    ],
+    "pipeline_stages": {
+      "entity_encoding": false,
+      "candidate_generation": false,
+      "cross_model_resolution": true,
+      "consensus_linking": false,
+      "structured_output": true
+    },
+    "num_entities": 0,
+    "num_relations": 0,
+    "num_candidates": 0,
+    "consensus_method": "multi_method_weighted",
+    "processing_timestamp": "2025-10-26T09:10:39.308193"
+  },
+  {
+    "text": "Meta Platforms, Inc., formerly known as Facebook, Inc., was founded by Mark Zuckerberg along with Eduardo Saverin, Andrew McCollum, Dustin Moskovitz, and Chris Hughes at Harvard University.",
+    "entities": [],
+    "relations": [],
+    "model_predictions": {
+      "atg": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "relik": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "spel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "failed",
+        "error_message": "local variable 'entities' referenced before assignment",
+        "processing_time": null
+      },
+      "unirel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "reader": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      }
+    },
+    "models_used": [
+      "atg",
+      "relik",
+      "spel",
+      "unirel",
+      "reader"
+    ],
+    "pipeline_stages": {
+      "entity_encoding": false,
+      "candidate_generation": false,
+      "cross_model_resolution": true,
+      "consensus_linking": false,
+      "structured_output": true
+    },
+    "num_entities": 0,
+    "num_relations": 0,
+    "num_candidates": 0,
+    "consensus_method": "multi_method_weighted",
+    "processing_timestamp": "2025-10-26T09:10:39.591441"
+  },
+  {
+    "text": "The Federal Reserve System, often called the Fed, is the central banking system of the United States. Jerome Powell currently serves as the Chairman of the Federal Reserve.",
+    "entities": [],
+    "relations": [],
+    "model_predictions": {
+      "atg": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "relik": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "spel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "failed",
+        "error_message": "local variable 'entities' referenced before assignment",
+        "processing_time": null
+      },
+      "unirel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "reader": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      }
+    },
+    "models_used": [
+      "atg",
+      "relik",
+      "spel",
+      "unirel",
+      "reader"
+    ],
+    "pipeline_stages": {
+      "entity_encoding": false,
+      "candidate_generation": false,
+      "cross_model_resolution": true,
+      "consensus_linking": false,
+      "structured_output": true
+    },
+    "num_entities": 0,
+    "num_relations": 0,
+    "num_candidates": 0,
+    "consensus_method": "multi_method_weighted",
+    "processing_timestamp": "2025-10-26T09:10:39.847961"
+  },
+  {
+    "text": "NVIDIA Corporation, founded by Jensen Huang, Chris Malachowsky, and Curtis Priem in 1993, is headquartered in Santa Clara, California, in the heart of Silicon Valley.",
+    "entities": [],
+    "relations": [],
+    "model_predictions": {
+      "atg": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "relik": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "spel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "failed",
+        "error_message": "local variable 'entities' referenced before assignment",
+        "processing_time": null
+      },
+      "unirel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "reader": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      }
+    },
+    "models_used": [
+      "atg",
+      "relik",
+      "spel",
+      "unirel",
+      "reader"
+    ],
+    "pipeline_stages": {
+      "entity_encoding": false,
+      "candidate_generation": false,
+      "cross_model_resolution": true,
+      "consensus_linking": false,
+      "structured_output": true
+    },
+    "num_entities": 0,
+    "num_relations": 0,
+    "num_candidates": 0,
+    "consensus_method": "multi_method_weighted",
+    "processing_timestamp": "2025-10-26T09:10:40.144405"
+  },
+  {
+    "text": "The World Trade Organization (WTO), established in 1995, is headquartered in Geneva, Switzerland. Ngozi Okonjo-Iweala serves as the current Director-General.",
+    "entities": [],
+    "relations": [],
+    "model_predictions": {
+      "atg": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "relik": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "spel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "failed",
+        "error_message": "local variable 'entities' referenced before assignment",
+        "processing_time": null
+      },
+      "unirel": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      },
+      "reader": {
+        "num_entities": 0,
+        "num_relations": 0,
+        "confidence_avg": 0.0,
+        "status": "success",
+        "error_message": null,
+        "processing_time": null
+      }
+    },
+    "models_used": [
+      "atg",
+      "relik",
+      "spel",
+      "unirel",
+      "reader"
+    ],
+    "pipeline_stages": {
+      "entity_encoding": false,
+      "candidate_generation": false,
+      "cross_model_resolution": true,
+      "consensus_linking": false,
+      "structured_output": true
+    },
+    "num_entities": 0,
+    "num_relations": 0,
+    "num_candidates": 0,
+    "consensus_method": "multi_method_weighted",
+    "processing_timestamp": "2025-10-26T09:10:40.441219"
   }
 ]

@@ -12,11 +12,14 @@ help:
 	@echo "  make setup-hooks      Setup pre-commit hooks"
 	@echo ""
 	@echo "Testing:"
-	@echo "  make test             Run all tests"
+	@echo "  make test             Run all tests (except E2E)"
 	@echo "  make test-unit        Run unit tests only"
 	@echo "  make test-integration Run integration tests only"
+	@echo "  make test-e2e         Run end-to-end tests with real models"
+	@echo "  make test-all         Run ALL tests including E2E"
 	@echo "  make test-benchmark   Run performance benchmarks"
 	@echo "  make test-coverage    Run tests with coverage report"
+	@echo "  make test-fast        Run fast unit tests only"
 	@echo ""
 	@echo "Code Quality:"
 	@echo "  make lint             Run linter (ruff)"
@@ -43,42 +46,57 @@ setup-hooks:
 
 # Testing
 test:
-	pytest tests/ -v
+	uv run pytest tests/ -v -m "not e2e"
 
 test-unit:
-	pytest tests/unit/ -v -m unit
+	uv run pytest tests/unit/ -v -m unit
 
 test-integration:
-	pytest tests/integration/ -v -m integration
+	uv run pytest tests/integration/ -v -m "integration and not e2e"
+
+test-e2e:
+	@echo "Running end-to-end tests with real models..."
+	@echo "This may take 10-30 minutes and will download ~2GB on first run"
+	uv run pytest tests/integration/test_e2e_pipeline.py -v -m e2e
+
+test-e2e-verbose:
+	uv run pytest tests/integration/test_e2e_pipeline.py -vv -s -m e2e
+
+test-all:
+	uv run pytest tests/ -v
 
 test-benchmark:
-	pytest tests/benchmarks/ -v -m benchmark --benchmark-only
+	uv run pytest tests/benchmarks/ -v -m benchmark --benchmark-only
 
 test-coverage:
-	pytest tests/ -v --cov=src/entity_resolution --cov-report=html --cov-report=term-missing
+	uv run pytest tests/ -v -m "not e2e" --cov=src/entity_resolution --cov-report=html --cov-report=term-missing
 	@echo "Coverage report generated in htmlcov/index.html"
 
+test-coverage-all:
+	uv run pytest tests/ -v --cov=src/entity_resolution --cov-report=html --cov-report=term-missing
+	@echo "Coverage report (including E2E) generated in htmlcov/index.html"
+
 test-fast:
-	pytest tests/unit/ -v -m "unit and not slow" -n auto
+	uv run pytest tests/unit/ -v -m "unit and not slow" -n auto
 
 # Code Quality
 lint:
-	ruff check .
+	uv run ruff check .
 
 lint-fix:
-	ruff check . --fix
+	uv run ruff check . --fix
 
 format:
-	ruff format .
+	uv run ruff format .
 
 format-check:
-	ruff format --check .
+	uv run ruff format --check .
 
 type-check:
-	mypy src/entity_resolution --ignore-missing-imports --no-strict-optional
+	uv run mypy src/entity_resolution --ignore-missing-imports --no-strict-optional
 
 security:
-	bandit -r src/entity_resolution -f json -o bandit-report.json
+	uv run bandit -r src/entity_resolution -f json -o bandit-report.json
 	@echo "Security report generated: bandit-report.json"
 
 check-all: lint format-check type-check security
@@ -107,13 +125,13 @@ clean:
 
 # Development
 run-example:
-	python src/entity_resolution/run_entity_resolution.py \
+	uv run python src/entity_resolution/run_entity_resolution.py \
 		--input test_input.txt \
 		--entities sample_entities.json \
 		--output results.json
 
 watch-test:
-	pytest-watch tests/ -v
+	uv run pytest-watch tests/ -v
 
 # CI/CD simulation
 ci-local: clean install-dev lint format-check type-check test-coverage

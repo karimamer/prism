@@ -1,13 +1,34 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "prism"
 version = "0.1.0"
-description = "Add your description here"
+description = "Unified entity resolution system combining ReLiK, SPEL, UniRel, ATG, and OneNet"
 readme = "README.md"
 requires-python = ">=3.9"
+license = {text = "GPL-3.0-or-later"}
+authors = [
+    {name = "Prism Contributors"}
+]
+keywords = ["entity-resolution", "nlp", "entity-linking", "knowledge-graph"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = [
     "duckdb>=1.2.1",
     "faiss-cpu>=1.10.0",
     "filelock>=3.18.0",
+    "isort>=6.1.0",
     "numpy>=2.0.2",
     "packaging>=24.2",
     "pandas>=2.2.3",
@@ -28,8 +49,12 @@ dependencies = [
     "transformers>=4.49.0",
 ]
 
+[tool.hatch.build.targets.wheel]
+packages = ["src/entity_resolution"]
+
 [dependency-groups]
 dev = [
+    "hatchling>=1.18.0",
     "ruff>=0.11.5",
     "pytest>=8.0.0",
     "pytest-cov>=4.1.0",
@@ -56,6 +81,7 @@ markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
     "unit: marks tests as unit tests",
+    "e2e: marks tests as end-to-end tests with real models (deselect with '-m \"not e2e\"')",
 ]
 filterwarnings = [
     "ignore::DeprecationWarning",

@@ -7,18 +7,13 @@ import argparse
 import json
 import logging
 import os
-import sys
 import time
+from datetime import datetime
 
 import torch
 
-# Add src to Python path
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+from entity_resolution.unified_system import UnifiedEntityResolutionSystem
 
-# Import system components
-from src.entity_resolution.unified_system import UnifiedEntityResolutionSystem
-
-# Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
@@ -136,12 +131,35 @@ def load_input_text(input_file):
         return [line.strip() for line in lines if line.strip()]
 
 
+class DateTimeEncoder(json.JSONEncoder):
+    """Custom JSON encoder for datetime objects"""
+
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        return super().default(obj)
+
+
 def save_output(results, output_file, format="json"):
     """Save output results to file"""
     with open(output_file, "w", encoding="utf-8") as f:
         if format == "json":
-            # JSON format
-            json.dump(results, f, indent=2)
+            # JSON format - convert Pydantic objects to dictionaries
+            serializable_results = []
+            for result in results:
+                if hasattr(result, "model_dump"):
+                    # Pydantic v2 method
+                    serializable_results.append(result.model_dump())
+                elif hasattr(result, "dict"):
+                    # Pydantic v1 method
+                    serializable_results.append(result.dict())
+                elif hasattr(result, "to_dict"):
+                    # Custom method
+                    serializable_results.append(result.to_dict())
+                else:
+                    # Fallback to regular dict conversion
+                    serializable_results.append(dict(result))
+            json.dump(serializable_results, f, indent=2, cls=DateTimeEncoder)
         elif format == "csv":
             # CSV format
             import csv

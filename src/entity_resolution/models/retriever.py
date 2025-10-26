@@ -1,9 +1,10 @@
+import faiss
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from transformers import AutoModel, AutoTokenizer
-import faiss
-import numpy as np
+
 
 class EntityRetriever(nn.Module):
     """
