@@ -235,7 +235,6 @@ class ReLiKRetriever(nn.Module):
 
         # Retrieve
         if self.use_faiss:
-
             # Search
             scores, indices = self.passage_index.search(query_embeddings.cpu().numpy(), top_k)
 

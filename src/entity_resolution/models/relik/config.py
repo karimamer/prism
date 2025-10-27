@@ -5,7 +5,6 @@ ReLiK (Retrieval-based Entity Linking and Knowledge base completion) uses a
 retriever-reader architecture for efficient entity linking and relation extraction.
 """
 
-
 from pydantic import Field, field_validator, model_validator
 
 from ..base_config import BaseRetrieverConfig, BaseThresholdConfig
