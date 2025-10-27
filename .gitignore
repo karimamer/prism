@@ -60,7 +60,9 @@ cache/
 *.pth
 *.ckpt
 *.safetensors
-models/
+# Ignore model weights but not source code in src/entity_resolution/models/
+/models/
+!/src/entity_resolution/models/
 
 # Data files (optional - adjust based on needs)
 data/
