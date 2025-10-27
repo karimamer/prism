@@ -10,7 +10,7 @@ Key innovations:
 3. Joint extraction of relational triples <subject-relation-object>
 """
 
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -80,7 +80,7 @@ class UniRelModel(nn.Module):
         self.entity_loss_fn = nn.CrossEntropyLoss()
         self.interaction_loss_fn = nn.BCEWithLogitsLoss()
 
-    def verbalize_relations(self) -> List[str]:
+    def verbalize_relations(self) -> list[str]:
         """
         Convert relation types to natural language forms.
 
@@ -95,7 +95,7 @@ class UniRelModel(nn.Module):
         self,
         input_ids: torch.Tensor,
         attention_mask: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Encode text with verbalized relations appended.
 
@@ -137,7 +137,7 @@ class UniRelModel(nn.Module):
         relation_mask = torch.ones(
             batch_size, num_relations, dtype=attention_mask.dtype, device=attention_mask.device
         )
-        combined_mask = torch.cat([attention_mask, relation_mask], dim=1)
+        torch.cat([attention_mask, relation_mask], dim=1)
 
         # Create relation position mask
         seq_len = hidden_states.size(1)
@@ -152,7 +152,7 @@ class UniRelModel(nn.Module):
         self,
         hidden_states: torch.Tensor,
         entity_labels: Optional[torch.Tensor] = None,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor], List]:
+    ) -> tuple[torch.Tensor, Optional[torch.Tensor], list]:
         """
         Extract entity spans from hidden states.
 
@@ -194,7 +194,7 @@ class UniRelModel(nn.Module):
         ee_labels: Optional[torch.Tensor] = None,
         er_labels: Optional[torch.Tensor] = None,
         return_triples: bool = False,
-    ) -> Dict[str, torch.Tensor]:
+    ) -> dict[str, torch.Tensor]:
         """
         Forward pass of UniRel model.
 
@@ -327,7 +327,7 @@ class UniRelModel(nn.Module):
         self,
         entity_preds: torch.Tensor,
         input_ids: torch.Tensor,
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Extract entity spans from BIO predictions.
 
@@ -370,7 +370,7 @@ class UniRelModel(nn.Module):
         self,
         text: str,
         device: Optional[torch.device] = None,
-    ) -> List[Tuple[str, str, str]]:
+    ) -> list[tuple[str, str, str]]:
         """
         Extract triples from input text.
 

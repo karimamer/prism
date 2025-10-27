@@ -1,12 +1,9 @@
-import math
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from sklearn.metrics.pairwise import cosine_similarity
 from transformers import AutoConfig, AutoModel, AutoTokenizer
 
 
@@ -71,7 +68,7 @@ class EntityReader(nn.Module):
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
         # Add markers to tokenizer
-        num_added = self.tokenizer.add_special_tokens(special_tokens)
+        self.tokenizer.add_special_tokens(special_tokens)
 
         # Resize token embeddings to account for new special tokens
         self.model.resize_token_embeddings(len(self.tokenizer))
@@ -151,9 +148,9 @@ class EntityReader(nn.Module):
     def encode_text_with_candidates(
         self,
         input_text: str,
-        candidate_entities: List[Dict],
-        detected_mentions: Optional[List[Tuple[int, int]]] = None,
-    ) -> Dict:
+        candidate_entities: list[dict],
+        detected_mentions: Optional[list[tuple[int, int]]] = None,
+    ) -> dict:
         """
         Encode input text with candidate entities in a single forward pass.
 
@@ -180,7 +177,7 @@ class EntityReader(nn.Module):
         input_ids = encoding["input_ids"].to(self.model.device)
         attention_mask = encoding["attention_mask"].to(self.model.device)
         offset_mapping = encoding["offset_mapping"]
-        special_tokens_mask = encoding["special_tokens_mask"]
+        encoding["special_tokens_mask"]
 
         # Track positions of entity mentions and candidates
         mention_positions = []
@@ -243,7 +240,7 @@ class EntityReader(nn.Module):
 
         input_ids = tokenized["input_ids"].to(self.model.device)
         attention_mask = tokenized["attention_mask"].to(self.model.device)
-        offset_mapping = tokenized["offset_mapping"]
+        tokenized["offset_mapping"]
 
         # Get model outputs
         with torch.no_grad():
@@ -326,7 +323,7 @@ class EntityReader(nn.Module):
         # Calculate scores for all mention-entity pairs
         mention_entity_scores = []
 
-        for i, mention_emb in enumerate(mention_embeddings):
+        for _i, mention_emb in enumerate(mention_embeddings):
             scores = []
             for j, candidate_emb in enumerate(candidate_embeddings):
                 # Concatenate mention and entity embeddings
@@ -423,8 +420,8 @@ class EntityReader(nn.Module):
         }
 
     def process_text(
-        self, query: str, candidate_entities: List[Dict], task_type: str = "entity_linking"
-    ) -> Dict:
+        self, query: str, candidate_entities: list[dict], task_type: str = "entity_linking"
+    ) -> dict:
         """
         Process query with candidate entities for entity linking or relation extraction.
 
@@ -489,7 +486,7 @@ class EntityReader(nn.Module):
         }
 
     def _calculate_entity_confidence(
-        self, mention_text: str, entity: Dict, context: str, mention_span: Tuple[int, int]
+        self, mention_text: str, entity: dict, context: str, mention_span: tuple[int, int]
     ) -> float:
         """
         Calculate sophisticated confidence score for entity linking.
@@ -597,7 +594,7 @@ class EntityReader(nn.Module):
 
     def _calculate_type_compatibility(self, mention: str, entity_type: str, context: str) -> float:
         """Calculate type compatibility based on mention and context."""
-        mention_lower = mention.lower()
+        mention.lower()
         context_lower = context.lower()
 
         # Type-specific heuristics

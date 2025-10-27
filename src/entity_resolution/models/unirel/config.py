@@ -4,7 +4,7 @@ Configuration for UniRel (Unified Representation and Interaction) model.
 Based on: "UniRel: Unified Representation and Interaction for Joint Relational Triple Extraction"
 """
 
-from typing import Dict, List, Optional
+from typing import Optional
 
 from pydantic import Field, field_validator, model_validator
 
@@ -51,14 +51,14 @@ class UniRelConfig(BaseEncoderConfig, BaseThresholdConfig):
     )
 
     # Relation types and verbalization
-    relation_types: List[str] = Field(
+    relation_types: list[str] = Field(
         default_factory=lambda: ["Work_For", "Based_In", "Located_In"],
         description="List of relation types to extract",
         min_length=1,
         examples=[["Work_For", "Based_In"], ["org:founded_by", "per:employee_of"]],
     )
 
-    relation_verbalizations: Optional[Dict[str, str]] = Field(
+    relation_verbalizations: Optional[dict[str, str]] = Field(
         default=None,
         description=(
             "Mapping from relation type to natural language form. "
@@ -94,7 +94,7 @@ class UniRelConfig(BaseEncoderConfig, BaseThresholdConfig):
     )
 
     # Entity extraction settings
-    entity_types: List[str] = Field(
+    entity_types: list[str] = Field(
         default_factory=lambda: ["PER", "ORG", "LOC", "MISC"],
         description="List of entity types for extraction",
         min_length=1,

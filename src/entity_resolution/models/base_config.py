@@ -6,10 +6,9 @@ to reduce duplication and ensure consistency.
 """
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional, Union
 
-from pydantic import (BaseModel, ConfigDict, Field, field_validator,
-                      model_validator)
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class BaseModelConfig(BaseModel):
@@ -52,13 +51,13 @@ class BaseModelConfig(BaseModel):
     )
 
     # Entity and relation types
-    entity_types: List[str] = Field(
+    entity_types: list[str] = Field(
         default_factory=lambda: ["PER", "ORG", "LOC", "MISC"],
         description="List of entity type labels",
         min_length=1,
     )
 
-    relation_types: Optional[List[str]] = Field(
+    relation_types: Optional[list[str]] = Field(
         default_factory=lambda: ["Work_For", "Based_In", "Located_In"],
         description="List of relation type labels (optional for entity-only models)",
     )
@@ -83,7 +82,7 @@ class BaseModelConfig(BaseModel):
 
     @field_validator("entity_types")
     @classmethod
-    def validate_entity_types(cls, v: List[str]) -> List[str]:
+    def validate_entity_types(cls, v: list[str]) -> list[str]:
         """Ensure entity types are valid."""
         if not v:
             raise ValueError("entity_types cannot be empty")
@@ -96,12 +95,12 @@ class BaseModelConfig(BaseModel):
                 unique_types.append(entity_type)
         return unique_types
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert config to dictionary."""
         return self.model_dump()
 
     @classmethod
-    def from_dict(cls, config_dict: Dict[str, Any]) -> "BaseModelConfig":
+    def from_dict(cls, config_dict: dict[str, Any]) -> "BaseModelConfig":
         """Create config from dictionary with validation."""
         return cls(**config_dict)
 

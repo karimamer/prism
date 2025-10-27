@@ -22,7 +22,7 @@ Architecture:
 
 import logging
 from enum import Enum
-from typing import Dict, List, Literal, Optional, Tuple
+from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -100,13 +100,13 @@ class ATGConfig(BaseEncoderConfig):
     )
 
     # Entity and relation types
-    entity_types: List[str] = Field(
+    entity_types: list[str] = Field(
         default_factory=lambda: ["PER", "ORG", "LOC", "MISC"],
         description="List of entity type labels",
         min_length=1,
     )
 
-    relation_types: List[str] = Field(
+    relation_types: list[str] = Field(
         default_factory=lambda: ["Work_For", "Based_In", "Located_In"],
         description="List of relation type labels",
         min_length=1,
@@ -606,7 +606,7 @@ class StateBasedConstraints:
         self,
         vocab_size: int,
         num_spans: int,
-    ) -> List[int]:
+    ) -> list[int]:
         """
         Get list of allowed token IDs based on current state.
 
@@ -760,7 +760,7 @@ class ImprovedATGModel(nn.Module):
         target_ids: Optional[torch.Tensor] = None,
         target_positions: Optional[torch.Tensor] = None,
         target_structures: Optional[torch.Tensor] = None,
-    ) -> Dict[str, torch.Tensor]:
+    ) -> dict[str, torch.Tensor]:
         """
         Forward pass.
 
@@ -838,7 +838,7 @@ class ImprovedATGModel(nn.Module):
         input_ids: torch.Tensor,
         attention_mask: torch.Tensor,
         max_length: int = 100,
-    ) -> List[List[int]]:
+    ) -> list[list[int]]:
         """
         Generate entity-relation graph with constrained decoding.
 
@@ -873,7 +873,7 @@ class ImprovedATGModel(nn.Module):
         start_id = self.vocabulary.get_special_token_id(self.config.start_token, num_spans)
         current_ids = torch.full((batch_size, 1), start_id, dtype=torch.long, device=device)
 
-        for step in range(max_length):
+        for _step in range(max_length):
             # Prepare decoder inputs
             target_embeddings = vocab_matrix.gather(
                 dim=1,
@@ -966,8 +966,8 @@ class ImprovedATGModel(nn.Module):
 
 
 def create_atg_model(
-    entity_types: List[str],
-    relation_types: List[str],
+    entity_types: list[str],
+    relation_types: list[str],
     encoder_model: str = "microsoft/deberta-v3-base",
     **kwargs,
 ) -> ImprovedATGModel:

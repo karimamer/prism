@@ -6,12 +6,11 @@ for token-level entity prediction.
 """
 
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import torch
 import torch.nn as nn
-from transformers import (AutoModel, AutoTokenizer, RobertaModel,
-                          RobertaTokenizer)
+from transformers import AutoModel, AutoTokenizer
 
 from .aggregation import PredictionAggregator
 from .candidate_sets import CandidateSetManager
@@ -81,9 +80,9 @@ class SPELModel(nn.Module):
 
     def load_candidate_sets(
         self,
-        fixed_candidates: Optional[List[str]] = None,
-        mention_candidates: Optional[Dict[str, List[str]]] = None,
-        entity_frequencies: Optional[Dict[str, int]] = None,
+        fixed_candidates: Optional[list[str]] = None,
+        mention_candidates: Optional[dict[str, list[str]]] = None,
+        entity_frequencies: Optional[dict[str, int]] = None,
     ):
         """
         Load candidate sets and initialize classification head.
@@ -118,7 +117,7 @@ class SPELModel(nn.Module):
         attention_mask: torch.Tensor,
         labels: Optional[torch.Tensor] = None,
         hard_negatives: Optional[torch.Tensor] = None,
-    ) -> Dict[str, torch.Tensor]:
+    ) -> dict[str, torch.Tensor]:
         """
         Forward pass for training.
 
@@ -201,7 +200,7 @@ class SPELModel(nn.Module):
         text: str,
         use_mention_specific_candidates: bool = False,
         return_scores: bool = False,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Predict entities in text.
 
@@ -229,7 +228,7 @@ class SPELModel(nn.Module):
 
         input_ids = encoding["input_ids"].to(self.encoder.device)
         attention_mask = encoding["attention_mask"].to(self.encoder.device)
-        offsets = encoding["offset_mapping"][0]
+        encoding["offset_mapping"][0]
 
         # Forward pass
         with torch.no_grad():
@@ -309,7 +308,7 @@ class SPELModel(nn.Module):
         import os
 
         # Load config
-        with open(os.path.join(path, "config.json"), "r") as f:
+        with open(os.path.join(path, "config.json")) as f:
             config_dict = json.load(f)
 
         config = SPELConfig(**config_dict)
@@ -340,7 +339,7 @@ class SPELModel(nn.Module):
 def create_spel_model(
     model_name: str = "roberta-base",
     fixed_candidate_set_size: int = 500000,
-    entity_types: Optional[List[str]] = None,
+    entity_types: Optional[list[str]] = None,
     **kwargs,
 ) -> SPELModel:
     """

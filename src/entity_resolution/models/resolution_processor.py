@@ -11,7 +11,6 @@ Following the sketch.md architecture.
 """
 
 import logging
-from typing import Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -119,7 +118,7 @@ class EntityResolutionProcessor(nn.Module):
         Returns:
             ReLiK scores [num_mentions, num_candidates]
         """
-        num_mentions = mention_embeddings.size(0)
+        mention_embeddings.size(0)
         num_candidates = candidate_embeddings.size(1)
 
         # Expand mention embeddings to match candidates
@@ -153,7 +152,7 @@ class EntityResolutionProcessor(nn.Module):
             ATG scores [num_mentions, num_candidates]
         """
         num_mentions = mention_embeddings.size(0)
-        num_candidates = candidate_embeddings.size(1)
+        candidate_embeddings.size(1)
 
         atg_scores = []
 
@@ -204,7 +203,7 @@ class EntityResolutionProcessor(nn.Module):
         Returns:
             UniRel scores [num_mentions, num_candidates]
         """
-        num_mentions = mention_embeddings.size(0)
+        mention_embeddings.size(0)
         num_candidates = candidate_embeddings.size(1)
 
         # Expand context embeddings to match candidates
@@ -234,7 +233,7 @@ class EntityResolutionProcessor(nn.Module):
         relik_features: torch.Tensor,
         atg_features: torch.Tensor,
         unirel_features: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Apply cross-model attention for information exchange.
 
@@ -283,8 +282,8 @@ class EntityResolutionProcessor(nn.Module):
     def forward(
         self,
         text_embeddings: torch.Tensor,
-        entity_candidates: List[Dict],
-    ) -> List[Dict]:
+        entity_candidates: list[dict],
+    ) -> list[dict]:
         """
         Process entity candidates with multiple methods and cross-model attention.
 

@@ -2,7 +2,6 @@ import faiss
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from transformers import AutoModel, AutoTokenizer
 
 
@@ -14,12 +13,8 @@ class EntityRetriever(nn.Module):
     for both queries and passages (entities/relations), following the DPR approach
     where EQ(q) = Retriever(q) and EP(p) = Retriever(p) use the same encoder.
     """
-    def __init__(
-        self,
-        model_name="microsoft/deberta-v3-small",
-        use_faiss=True,
-        top_k=100
-    ):
+
+    def __init__(self, model_name="microsoft/deberta-v3-small", use_faiss=True, top_k=100):
         super().__init__()
 
         # Single shared encoder for both queries and passages (DPR paradigm)
@@ -41,17 +36,16 @@ class EntityRetriever(nn.Module):
     def encode(self, input_ids, attention_mask):
         """Encode input text/passage into dense vector using shared encoder (DPR style)"""
         # Get embeddings from shared encoder
-        outputs = self.encoder(
-            input_ids=input_ids,
-            attention_mask=attention_mask
-        )
+        outputs = self.encoder(input_ids=input_ids, attention_mask=attention_mask)
 
         # Use average of token encodings as specified in the paper
         token_embeddings = outputs.last_hidden_state
         input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
 
         # Average pooling over all tokens (as specified: "average of encodings for tokens")
-        embeddings = torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
+        embeddings = torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(
+            input_mask_expanded.sum(1), min=1e-9
+        )
 
         return embeddings
 
@@ -59,11 +53,7 @@ class EntityRetriever(nn.Module):
         """Encode passage texts (entities/relations) using shared encoder"""
         # Tokenize passage texts
         inputs = self.tokenizer(
-            passage_texts,
-            padding=True,
-            truncation=True,
-            return_tensors="pt",
-            max_length=128
+            passage_texts, padding=True, truncation=True, return_tensors="pt", max_length=128
         )
 
         # Move to same device as encoder
@@ -96,7 +86,7 @@ class EntityRetriever(nn.Module):
         all_embeddings = []
 
         for i in range(0, len(entity_texts), batch_size):
-            batch_texts = entity_texts[i:i+batch_size]
+            batch_texts = entity_texts[i : i + batch_size]
             batch_embeddings = self.encode_passages(batch_texts).detach().cpu().numpy()
             all_embeddings.append(batch_embeddings)
 
@@ -104,7 +94,9 @@ class EntityRetriever(nn.Module):
 
         # Build FAISS index
         dimension = entity_embeddings.shape[1]
-        self.index = faiss.IndexFlatIP(dimension)  # Inner product is equivalent to cosine similarity for normalized vectors
+        self.index = faiss.IndexFlatIP(
+            dimension
+        )  # Inner product is equivalent to cosine similarity for normalized vectors
         self.index.add(entity_embeddings)
 
         # For very large entity sets, use approximate nearest neighbors
@@ -146,7 +138,7 @@ class EntityRetriever(nn.Module):
 
         # Format results
         results = []
-        for i, (score_array, idx_array) in enumerate(zip(scores, indices)):
+        for _i, (score_array, idx_array) in enumerate(zip(scores, indices)):
             for score, idx in zip(score_array, idx_array):
                 if idx < len(self.entity_ids):  # Guard against invalid indices
                     entity_id = self.entity_ids[idx]
@@ -181,11 +173,7 @@ class EntityRetriever(nn.Module):
         if entity_texts is not None:
             # Tokenize and encode passages
             entity_inputs = self.tokenizer(
-                entity_texts,
-                padding=True,
-                truncation=True,
-                return_tensors="pt",
-                max_length=128
+                entity_texts, padding=True, truncation=True, return_tensors="pt", max_length=128
             )
             entity_inputs = {k: v.to(self.encoder.device) for k, v in entity_inputs.items()}
             passage_emb = self.encode(entity_inputs["input_ids"], entity_inputs["attention_mask"])
@@ -197,10 +185,7 @@ class EntityRetriever(nn.Module):
             ]
             passage_emb = self.encode_passages(entity_texts)
 
-        return {
-            "query_embeddings": query_emb,
-            "passage_embeddings": passage_emb
-        }
+        return {"query_embeddings": query_emb, "passage_embeddings": passage_emb}
 
     def compute_similarity(self, query_emb, passage_emb):
         """Compute similarity using dot product of contextualized representations (DPR style)"""
@@ -208,7 +193,9 @@ class EntityRetriever(nn.Module):
         sim = torch.matmul(query_emb, passage_emb.transpose(0, 1))
         return sim
 
-    def multi_label_nce_loss(self, query_emb, passage_emb, positive_passage_mask, hard_negatives=None):
+    def multi_label_nce_loss(
+        self, query_emb, passage_emb, positive_passage_mask, hard_negatives=None
+    ):
         """
         Multi-label Noise Contrastive Estimation loss as described in the paper.
 
@@ -308,14 +295,14 @@ class EntityRetriever(nn.Module):
     def save(self, path):
         """Save retriever model and index"""
         # Save model state
-        torch.save({
-            "encoder": self.encoder.state_dict(),
-            "entity_ids": self.entity_ids,
-            "config": {
-                "model_name": self.encoder.config.name_or_path,
-                "top_k": self.top_k
-            }
-        }, f"{path}/retriever_model.pt")
+        torch.save(
+            {
+                "encoder": self.encoder.state_dict(),
+                "entity_ids": self.entity_ids,
+                "config": {"model_name": self.encoder.config.name_or_path, "top_k": self.top_k},
+            },
+            f"{path}/retriever_model.pt",
+        )
 
         # Save FAISS index
         if self.use_faiss and self.index is not None:
@@ -332,10 +319,7 @@ class EntityRetriever(nn.Module):
         config = state_dict["config"]
 
         # Create model instance
-        retriever = cls(
-            model_name=config["model_name"],
-            top_k=config["top_k"]
-        )
+        retriever = cls(model_name=config["model_name"], top_k=config["top_k"])
 
         # Load model weights
         retriever.encoder.load_state_dict(state_dict["encoder"])
@@ -347,7 +331,7 @@ class EntityRetriever(nn.Module):
         # Load FAISS index
         try:
             retriever.index = faiss.read_index(f"{path}/entity_index.faiss")
-        except:
-            print("No FAISS index found. You'll need to rebuild the index.")
+        except Exception as e:
+            print(f"No FAISS index found: {e}. You'll need to rebuild the index.")
 
         return retriever

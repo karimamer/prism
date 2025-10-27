@@ -5,7 +5,7 @@ Manages fixed and mention-specific candidate sets for entity linking.
 """
 
 import logging
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -22,9 +22,9 @@ class CandidateSetManager:
 
     def __init__(
         self,
-        fixed_candidates: Optional[List[str]] = None,
-        mention_candidates: Optional[Dict[str, List[str]]] = None,
-        entity_to_idx: Optional[Dict[str, int]] = None,
+        fixed_candidates: Optional[list[str]] = None,
+        mention_candidates: Optional[dict[str, list[str]]] = None,
+        entity_to_idx: Optional[dict[str, int]] = None,
     ):
         """
         Initialize candidate set manager.
@@ -48,7 +48,7 @@ class CandidateSetManager:
         self,
         mention_text: str,
         use_mention_specific: bool = False,
-    ) -> Set[str]:
+    ) -> set[str]:
         """
         Get candidate entities for a mention.
 
@@ -71,9 +71,9 @@ class CandidateSetManager:
     def filter_predictions(
         self,
         mention_text: str,
-        predicted_entities: List[Tuple[str, float]],
+        predicted_entities: list[tuple[str, float]],
         use_mention_specific: bool = False,
-    ) -> List[Tuple[str, float]]:
+    ) -> list[tuple[str, float]]:
         """
         Filter predicted entities using candidate set.
 
@@ -103,7 +103,7 @@ class CandidateSetManager:
 
         return filtered if filtered else predicted_entities
 
-    def add_fixed_candidates(self, entity_ids: List[str]):
+    def add_fixed_candidates(self, entity_ids: list[str]):
         """
         Add entities to fixed candidate set.
 
@@ -117,7 +117,7 @@ class CandidateSetManager:
                 self.entity_to_idx[ent_id] = idx
                 self.idx_to_entity[idx] = ent_id
 
-    def add_mention_candidates(self, mention_text: str, entity_ids: List[str]):
+    def add_mention_candidates(self, mention_text: str, entity_ids: list[str]):
         """
         Add mention-specific candidates.
 
@@ -147,7 +147,7 @@ class CandidateSetManager:
 
     def build_from_frequency(
         self,
-        entity_frequencies: Dict[str, int],
+        entity_frequencies: dict[str, int],
         top_k: int = 500000,
     ):
         """
@@ -193,19 +193,19 @@ class CandidateSetManager:
         import os
 
         # Load fixed candidates
-        with open(os.path.join(path, "fixed_candidates.json"), "r") as f:
+        with open(os.path.join(path, "fixed_candidates.json")) as f:
             fixed_candidates = json.load(f)
 
         # Load mention candidates
         mention_path = os.path.join(path, "mention_candidates.json")
         if os.path.exists(mention_path):
-            with open(mention_path, "r") as f:
+            with open(mention_path) as f:
                 mention_candidates = json.load(f)
         else:
             mention_candidates = {}
 
         # Load entity vocabulary
-        with open(os.path.join(path, "entity_vocab.json"), "r") as f:
+        with open(os.path.join(path, "entity_vocab.json")) as f:
             entity_to_idx = json.load(f)
 
         logger.info(f"Loaded candidate sets from {path}")

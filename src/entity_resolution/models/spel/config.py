@@ -5,7 +5,7 @@ SPEL (Structured Prediction for Entity Linking) uses token-level classification
 with context-sensitive prediction aggregation for entity linking.
 """
 
-from typing import List, Literal
+from typing import Literal
 
 from pydantic import Field, field_validator, model_validator
 
@@ -171,7 +171,7 @@ class SPELConfig(BaseEncoderConfig, BaseThresholdConfig):
     )
 
     # Entity types (inherited from BaseModelConfig via BaseEncoderConfig)
-    entity_types: List[str] = Field(
+    entity_types: list[str] = Field(
         default_factory=lambda: ["PER", "ORG", "LOC", "MISC"],
         description="List of entity type labels (for compatibility)",
         min_length=1,

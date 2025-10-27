@@ -5,7 +5,7 @@ Implements a bi-encoder architecture for retrieving candidate entities or relati
 based on Dense Passage Retrieval (DPR).
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import torch
 import torch.nn as nn
@@ -57,7 +57,7 @@ class ReLiKRetriever(nn.Module):
 
     def encode_query(
         self,
-        queries: List[str],
+        queries: list[str],
         batch_size: int = 32,
     ) -> torch.Tensor:
         """
@@ -101,7 +101,7 @@ class ReLiKRetriever(nn.Module):
 
     def encode_passage(
         self,
-        passages: List[str],
+        passages: list[str],
         batch_size: int = 32,
     ) -> torch.Tensor:
         """
@@ -172,7 +172,7 @@ class ReLiKRetriever(nn.Module):
 
     def build_index(
         self,
-        passages: Dict[str, Dict[str, Any]],
+        passages: dict[str, dict[str, Any]],
         batch_size: int = 32,
     ):
         """
@@ -214,9 +214,9 @@ class ReLiKRetriever(nn.Module):
 
     def retrieve(
         self,
-        queries: List[str],
+        queries: list[str],
         top_k: int = 100,
-    ) -> List[List[Tuple[str, Dict[str, Any], float]]]:
+    ) -> list[list[tuple[str, dict[str, Any], float]]]:
         """
         Retrieve top-k passages for each query.
 
@@ -235,7 +235,6 @@ class ReLiKRetriever(nn.Module):
 
         # Retrieve
         if self.use_faiss:
-            import faiss
 
             # Search
             scores, indices = self.passage_index.search(query_embeddings.cpu().numpy(), top_k)

@@ -5,9 +5,6 @@ Aggregates subword-level predictions into word-level and span-level predictions.
 """
 
 import logging
-from typing import Dict, List, Optional, Set, Tuple
-
-import torch
 
 logger = logging.getLogger(__name__)
 
@@ -99,10 +96,10 @@ class PredictionAggregator:
     def aggregate_subword_predictions(
         self,
         text: str,
-        subword_predictions: List[List[Tuple[str, float]]],
-        subword_to_word_map: List[int],
+        subword_predictions: list[list[tuple[str, float]]],
+        subword_to_word_map: list[int],
         top_k: int = 3,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         Aggregate subword predictions into span-level predictions.
 
@@ -135,9 +132,9 @@ class PredictionAggregator:
 
     def _group_by_word(
         self,
-        subword_predictions: List[List[Tuple[str, float]]],
-        subword_to_word_map: List[int],
-    ) -> Dict[int, List[List[Tuple[str, float]]]]:
+        subword_predictions: list[list[tuple[str, float]]],
+        subword_to_word_map: list[int],
+    ) -> dict[int, list[list[tuple[str, float]]]]:
         """
         Group subword predictions by word index.
 
@@ -161,8 +158,8 @@ class PredictionAggregator:
 
     def _aggregate_word_predictions(
         self,
-        word_predictions: Dict[int, List[List[Tuple[str, float]]]],
-    ) -> Dict[int, Tuple[str, float]]:
+        word_predictions: dict[int, list[list[tuple[str, float]]]],
+    ) -> dict[int, tuple[str, float]]:
         """
         Aggregate predictions within each word.
 
@@ -202,9 +199,9 @@ class PredictionAggregator:
 
     def _merge_consecutive_words(
         self,
-        word_entities: Dict[int, Tuple[str, float]],
+        word_entities: dict[int, tuple[str, float]],
         text: str,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         Merge consecutive words with the same entity into spans.
 
@@ -259,10 +256,10 @@ class PredictionAggregator:
     def _create_span(
         self,
         entity_id: str,
-        word_indices: List[int],
-        probabilities: List[float],
+        word_indices: list[int],
+        probabilities: list[float],
         text: str,
-    ) -> Dict:
+    ) -> dict:
         """Create span dictionary from word indices."""
         # For now, use dummy char positions (would need proper word boundary detection)
         avg_prob = sum(probabilities) / len(probabilities) if probabilities else 0.0
@@ -277,9 +274,9 @@ class PredictionAggregator:
 
     def _filter_spans(
         self,
-        spans: List[Dict],
+        spans: list[dict],
         text: str,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         Filter invalid spans.
 

@@ -8,7 +8,7 @@ The Interaction Map is the core innovation of UniRel, modeling both:
 Built on top of self-attention mechanism.
 """
 
-from typing import Optional, Tuple
+from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -87,7 +87,7 @@ class InteractionMap(nn.Module):
         attention_mask: Optional[torch.Tensor] = None,
         entity_positions: Optional[torch.Tensor] = None,
         relation_positions: Optional[torch.Tensor] = None,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Forward pass of Interaction Map.
 
@@ -103,7 +103,7 @@ class InteractionMap(nn.Module):
             - Entity-Entity interaction scores [batch_size, num_entities, num_entities]
             - Entity-Relation interaction scores [batch_size, num_entities, num_relations]
         """
-        batch_size = hidden_states.size(0)
+        hidden_states.size(0)
 
         # Multi-head self-attention
         query_layer = self.transpose_for_scores(self.query(hidden_states))
@@ -273,7 +273,7 @@ class InteractionDecoder(nn.Module):
         ee_probs = torch.sigmoid(ee_scores)
         er_probs = torch.sigmoid(er_scores)
 
-        num_entities = ee_probs.size(0)
+        ee_probs.size(0)
         num_relations = er_probs.size(1)
 
         # Extract triples

@@ -2,7 +2,7 @@ import json
 import logging
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import torch
 import torch.nn as nn
@@ -53,8 +53,8 @@ class ModelAgreement(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     total_models: int = Field(..., description="Total number of models attempted")
-    agreeing_models: List[str] = Field(default=[], description="Models that agree on this entity")
-    confidence_range: Dict[str, float] = Field(
+    agreeing_models: list[str] = Field(default=[], description="Models that agree on this entity")
+    confidence_range: dict[str, float] = Field(
         default={"min": 0.0, "max": 1.0}, description="Confidence range across agreeing models"
     )
     agreement_score: float = Field(..., ge=0.0, le=1.0, description="Agreement score (0-1)")
@@ -137,16 +137,16 @@ class UnifiedSystemOutput(BaseModel):
 
     # Core data
     text: str = Field(..., description="Original input text")
-    entities: List[EntityPrediction] = Field(default=[], description="Resolved entity predictions")
-    relations: List[RelationPrediction] = Field(
+    entities: list[EntityPrediction] = Field(default=[], description="Resolved entity predictions")
+    relations: list[RelationPrediction] = Field(
         default=[], description="Extracted relation predictions"
     )
 
     # Model information
-    model_predictions: Dict[str, ModelPredictionStats] = Field(
+    model_predictions: dict[str, ModelPredictionStats] = Field(
         ..., description="Statistics for each model attempted"
     )
-    models_used: List[str] = Field(..., description="List of models that were attempted")
+    models_used: list[str] = Field(..., description="List of models that were attempted")
 
     # Pipeline information
     pipeline_stages: PipelineStage = Field(..., description="Pipeline stage completion status")
@@ -181,11 +181,11 @@ class UnifiedSystemOutput(BaseModel):
         return sum(entity.confidence for entity in self.entities) / len(self.entities)
 
     @property
-    def entity_types_found(self) -> List[str]:
+    def entity_types_found(self) -> list[str]:
         """Get list of unique entity types found."""
-        return list(set(entity.entity_type.value for entity in self.entities))
+        return list({entity.entity_type.value for entity in self.entities})
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary with computed properties."""
         data = self.model_dump()
         data["success_rate"] = self.success_rate
@@ -205,13 +205,13 @@ class UnifiedSystemOutput(BaseModel):
 
 def create_entity_prediction(
     mention: str,
-    mention_span: Tuple[int, int],
+    mention_span: tuple[int, int],
     entity_id: str,
     entity_name: str,
     entity_type: str,
     confidence: float,
     source_model: str = "unknown",
-    model_agreement: Optional[Dict] = None,
+    model_agreement: Optional[dict] = None,
 ) -> EntityPrediction:
     """Create an EntityPrediction from raw data."""
     try:
@@ -243,8 +243,8 @@ def create_relation_prediction(
     object_: str,
     confidence: float,
     source_model: str = "unknown",
-    subject_span: Optional[Tuple[int, int]] = None,
-    object_span: Optional[Tuple[int, int]] = None,
+    subject_span: Optional[tuple[int, int]] = None,
+    object_span: Optional[tuple[int, int]] = None,
 ) -> RelationPrediction:
     """Create a RelationPrediction from raw data."""
     subj_span = EntitySpan(start=subject_span[0], end=subject_span[1]) if subject_span else None
@@ -263,11 +263,11 @@ def create_relation_prediction(
 
 def create_unified_output(
     text: str,
-    entities: List[Dict[str, Any]],
-    relations: List[Dict[str, Any]],
-    model_predictions: Dict[str, Dict[str, Any]],
-    models_used: List[str],
-    pipeline_stages: Dict[str, bool],
+    entities: list[dict[str, Any]],
+    relations: list[dict[str, Any]],
+    model_predictions: dict[str, dict[str, Any]],
+    models_used: list[str],
+    pipeline_stages: dict[str, bool],
     num_candidates: int,
     consensus_method: str = "multi_method_weighted",
 ) -> UnifiedSystemOutput:
@@ -356,8 +356,8 @@ class EntityOutputFormatter(nn.Module):
         self.tokenizer = tokenizer
 
     def convert_token_to_char_spans(
-        self, token_spans: List[Tuple[int, int]], offset_mapping: torch.Tensor
-    ) -> List[Tuple[int, int]]:
+        self, token_spans: list[tuple[int, int]], offset_mapping: torch.Tensor
+    ) -> list[tuple[int, int]]:
         """
         Convert token-level spans to character-level spans.
 
@@ -382,7 +382,7 @@ class EntityOutputFormatter(nn.Module):
 
         return char_spans
 
-    def get_mention_text(self, input_ids: torch.Tensor, token_span: Tuple[int, int]) -> str:
+    def get_mention_text(self, input_ids: torch.Tensor, token_span: tuple[int, int]) -> str:
         """
         Get mention text from token span.
 
@@ -407,7 +407,7 @@ class EntityOutputFormatter(nn.Module):
 
     def format_entity(
         self,
-        mention_span: Tuple[int, int],
+        mention_span: tuple[int, int],
         entity_id: str,
         entity_name: str,
         entity_type: str,
@@ -415,7 +415,7 @@ class EntityOutputFormatter(nn.Module):
         input_ids: Optional[torch.Tensor] = None,
         offset_mapping: Optional[torch.Tensor] = None,
         source: str = "entity_resolution",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Format entity information for output.
 
@@ -463,10 +463,10 @@ class EntityOutputFormatter(nn.Module):
 
     def format_entities(
         self,
-        linked_entities: List[Dict[str, Any]],
+        linked_entities: list[dict[str, Any]],
         input_ids: Optional[torch.Tensor] = None,
         offset_mapping: Optional[torch.Tensor] = None,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Format multiple entities for output.
 
@@ -512,12 +512,12 @@ class EntityOutputFormatter(nn.Module):
 
     def forward(
         self,
-        linked_entities: List[Dict[str, Any]],
+        linked_entities: list[dict[str, Any]],
         input_ids: Optional[torch.Tensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
         offset_mapping: Optional[torch.Tensor] = None,
         text: Optional[str] = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Forward pass for entity output formatter.
 
@@ -548,7 +548,7 @@ class EntityOutputFormatter(nn.Module):
 
         return output
 
-    def to_json(self, entities_data: Dict[str, Any], indent: int = 2) -> str:
+    def to_json(self, entities_data: dict[str, Any], indent: int = 2) -> str:
         """
         Convert entity data to JSON string.
 
@@ -561,7 +561,7 @@ class EntityOutputFormatter(nn.Module):
         """
         return json.dumps(entities_data, indent=indent)
 
-    def to_csv(self, entities_data: Dict[str, Any]) -> str:
+    def to_csv(self, entities_data: dict[str, Any]) -> str:
         """
         Convert entity data to CSV format.
 
@@ -592,7 +592,7 @@ class EntityOutputFormatter(nn.Module):
 
         return "\n".join(csv_lines)
 
-    def to_text(self, entities_data: Dict[str, Any]) -> str:
+    def to_text(self, entities_data: dict[str, Any]) -> str:
         """
         Convert entity data to human-readable text format.
 
@@ -615,7 +615,7 @@ class EntityOutputFormatter(nn.Module):
 
         return "\n".join(lines)
 
-    def convert_format(self, entities_data: Dict[str, Any], output_format: str = "json") -> str:
+    def convert_format(self, entities_data: dict[str, Any], output_format: str = "json") -> str:
         """
         Convert entity data to specified format.
 

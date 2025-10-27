@@ -5,12 +5,10 @@ ReLiK (Retrieval-based Entity Linking and Knowledge base completion) uses a
 retriever-reader architecture for efficient entity linking and relation extraction.
 """
 
-from typing import List, Optional
 
 from pydantic import Field, field_validator, model_validator
 
-from ..base_config import (BaseModelConfig, BaseRetrieverConfig,
-                           BaseThresholdConfig)
+from ..base_config import BaseRetrieverConfig, BaseThresholdConfig
 
 
 class ReLiKConfig(BaseRetrieverConfig, BaseThresholdConfig):
@@ -147,13 +145,13 @@ class ReLiKConfig(BaseRetrieverConfig, BaseThresholdConfig):
     )
 
     # Entity and relation types (inherited from BaseModelConfig)
-    entity_types: List[str] = Field(
+    entity_types: list[str] = Field(
         default_factory=lambda: ["PER", "ORG", "LOC", "MISC"],
         description="List of entity type labels",
         min_length=1,
     )
 
-    relation_types: List[str] = Field(
+    relation_types: list[str] = Field(
         default_factory=lambda: ["Work_For", "Based_In", "Located_In"],
         description="List of relation type labels",
         min_length=1,

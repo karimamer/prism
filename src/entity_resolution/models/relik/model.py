@@ -4,7 +4,7 @@ ReLiK Model: Complete Retrieve and LinK system.
 Combines Retriever and Reader for end-to-end entity linking and relation extraction.
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import torch
 import torch.nn as nn
@@ -59,7 +59,7 @@ class ReLiKModel(nn.Module):
 
     def load_entities(
         self,
-        entities: Dict[str, Dict[str, Any]],
+        entities: dict[str, dict[str, Any]],
         batch_size: int = 32,
     ):
         """
@@ -78,7 +78,7 @@ class ReLiKModel(nn.Module):
 
     def load_relations(
         self,
-        relations: Dict[str, Dict[str, Any]],
+        relations: dict[str, dict[str, Any]],
     ):
         """
         Load relation types.
@@ -93,7 +93,7 @@ class ReLiKModel(nn.Module):
         text: str,
         top_k: Optional[int] = None,
         return_candidates: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Process text for entity linking.
 
@@ -141,10 +141,10 @@ class ReLiKModel(nn.Module):
 
     def process_batch(
         self,
-        texts: List[str],
+        texts: list[str],
         top_k: Optional[int] = None,
         batch_size: int = 8,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Process a batch of texts.
 
@@ -172,7 +172,7 @@ class ReLiKModel(nn.Module):
         text: str,
         top_k: Optional[int] = None,
         return_candidates: bool = False,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Extract relations from text.
 
@@ -209,7 +209,7 @@ class ReLiKModel(nn.Module):
         input_ids: torch.Tensor,
         attention_mask: torch.Tensor,
         **kwargs,
-    ) -> Dict[str, torch.Tensor]:
+    ) -> dict[str, torch.Tensor]:
         """
         Forward pass (primarily for training).
 
@@ -281,7 +281,7 @@ class ReLiKModel(nn.Module):
         import os
 
         # Load config
-        with open(os.path.join(path, "config.json"), "r") as f:
+        with open(os.path.join(path, "config.json")) as f:
             config_dict = json.load(f)
 
         config = ReLiKConfig(**config_dict)
@@ -300,8 +300,8 @@ class ReLiKModel(nn.Module):
 def create_relik_model(
     retriever_model: str = "microsoft/deberta-v3-small",
     reader_model: str = "microsoft/deberta-v3-base",
-    entity_types: Optional[List[str]] = None,
-    relation_types: Optional[List[str]] = None,
+    entity_types: Optional[list[str]] = None,
+    relation_types: Optional[list[str]] = None,
     use_entity_linking: bool = True,
     use_relation_extraction: bool = False,
     **kwargs,

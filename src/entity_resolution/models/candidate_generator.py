@@ -10,7 +10,7 @@ Following the sketch.md architecture.
 """
 
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -91,7 +91,7 @@ class EntityCandidateGenerator(nn.Module):
         self,
         text_embeddings: torch.Tensor,
         attention_mask: Optional[torch.Tensor] = None,
-    ) -> List[List[Tuple[int, int]]]:
+    ) -> list[list[tuple[int, int]]]:
         """
         Detect entity mentions using SpEL-style BIO tagging.
 
@@ -147,7 +147,7 @@ class EntityCandidateGenerator(nn.Module):
     def get_mention_embeddings(
         self,
         text_embeddings: torch.Tensor,
-        mention_spans: List[Tuple[int, int]],
+        mention_spans: list[tuple[int, int]],
     ) -> torch.Tensor:
         """
         Get embeddings for entity mentions by pooling span representations.
@@ -178,7 +178,7 @@ class EntityCandidateGenerator(nn.Module):
         self,
         mention_embeddings: torch.Tensor,
         top_k: int = 100,
-    ) -> Tuple[List[List[Dict]], List[List[torch.Tensor]]]:
+    ) -> tuple[list[list[dict]], list[list[torch.Tensor]]]:
         """
         Retrieve candidate entities using ReLiK-style dense retrieval.
 
@@ -243,10 +243,10 @@ class EntityCandidateGenerator(nn.Module):
     def score_and_filter_candidates(
         self,
         mention_embeddings: torch.Tensor,
-        all_candidates: List[List[Dict]],
-        all_candidate_embeddings: List[List[torch.Tensor]],
+        all_candidates: list[list[dict]],
+        all_candidate_embeddings: list[list[torch.Tensor]],
         top_k: int = 100,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         Score and filter candidates using OneNet-style approach.
 
@@ -317,7 +317,7 @@ class EntityCandidateGenerator(nn.Module):
         attention_mask: Optional[torch.Tensor] = None,
         top_k: int = 100,
         return_all_mentions: bool = True,
-    ) -> List[Dict]:
+    ) -> list[dict]:
         """
         Full forward pass: detect mentions, retrieve candidates, and filter.
 

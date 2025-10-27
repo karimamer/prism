@@ -11,25 +11,32 @@ This package contains all model implementations including:
 
 # Model-specific implementations
 from entity_resolution.models.atg import ATGConfig, ImprovedATGModel
+
 # Base configurations
-from entity_resolution.models.base_config import (BaseEncoderConfig,
+from entity_resolution.models.base_config import (
+                                                  BaseEncoderConfig,
                                                   BaseModelConfig,
                                                   BaseRetrieverConfig,
-                                                  BaseThresholdConfig)
-from entity_resolution.models.candidate_generator import \
-    EntityCandidateGenerator
+                                                  BaseThresholdConfig,
+)
+from entity_resolution.models.candidate_generator import EntityCandidateGenerator
 from entity_resolution.models.consensus import ConsensusModule
 from entity_resolution.models.entity_encoder import EntityFocusedEncoder
+
 # Output formatting
-from entity_resolution.models.output import (EntityOutputFormatter,
-                                             EntityPrediction, EntityType,
-                                             ModelStatus, RelationPrediction,
-                                             UnifiedSystemOutput,
-                                             create_unified_output)
+from entity_resolution.models.output import (
+                                                  EntityOutputFormatter,
+                                                  EntityPrediction,
+                                                  EntityType,
+                                                  ModelStatus,
+                                                  RelationPrediction,
+                                                  UnifiedSystemOutput,
+                                                  create_unified_output,
+)
 from entity_resolution.models.reader import EntityReader
 from entity_resolution.models.relik import ReLiKConfig, ReLiKModel
-from entity_resolution.models.resolution_processor import \
-    EntityResolutionProcessor
+from entity_resolution.models.resolution_processor import EntityResolutionProcessor
+
 # Base components
 from entity_resolution.models.retriever import EntityRetriever
 from entity_resolution.models.spel import SPELConfig, SPELModel

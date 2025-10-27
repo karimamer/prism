@@ -6,7 +6,7 @@ contextualization over general text understanding, following the sketch.md desig
 """
 
 import logging
-from typing import Optional, Tuple
+from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -101,7 +101,7 @@ class EntityFocusedEncoder(nn.Module):
         entity_knowledge: Optional[torch.Tensor] = None,
         entity_types: Optional[torch.Tensor] = None,
         return_entity_projections: bool = False,
-    ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+    ) -> tuple[torch.Tensor, Optional[torch.Tensor]]:
         """
         Forward pass through entity-focused encoder.
 

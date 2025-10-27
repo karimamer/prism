@@ -1,11 +1,13 @@
+import logging
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Optional
 
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 
 class ExtractionMethod(Enum):
@@ -24,7 +26,7 @@ class EntityPrediction(BaseModel):
     confidence: float
     linker_type: str  # "contextual", "prior", "relik", "atg"
     reasoning: Optional[str] = None
-    mention_span: Optional[Tuple[int, int]] = None
+    mention_span: Optional[tuple[int, int]] = None
     extraction_method: Optional[ExtractionMethod] = None
 
 
@@ -32,8 +34,8 @@ class MethodPrediction(BaseModel):
     """Predictions from a specific extraction method."""
 
     method: ExtractionMethod
-    entities: List[EntityPrediction]
-    relations: List[Tuple[EntityPrediction, EntityPrediction, str]]
+    entities: list[EntityPrediction]
+    relations: list[tuple[EntityPrediction, EntityPrediction, str]]
     confidence: float
     reasoning: str
 
@@ -148,8 +150,8 @@ class DualPerspectiveEntityLinker(nn.Module):
         mention_embedding: torch.Tensor,
         context_embedding: torch.Tensor,
         entity_embeddings: torch.Tensor,
-        entity_names: List[str],
-    ) -> Tuple[EntityPrediction, EntityPrediction]:
+        entity_names: list[str],
+    ) -> tuple[EntityPrediction, EntityPrediction]:
         """
         Generate predictions from both contextual and prior linkers.
 
@@ -566,12 +568,12 @@ class ConsensusModule(nn.Module):
 
     def resolve_entities_onenet(
         self,
-        mentions: List[Dict],
+        mentions: list[dict],
         mention_embeddings: torch.Tensor,
         context_embeddings: torch.Tensor,
         entity_embeddings: torch.Tensor,
-        entity_names: List[str],
-    ) -> List[EntityPrediction]:
+        entity_names: list[str],
+    ) -> list[EntityPrediction]:
         """
         Resolve entities using OneNet's dual-perspective approach.
 
@@ -587,7 +589,7 @@ class ConsensusModule(nn.Module):
         """
         resolved_entities = []
 
-        for i, mention in enumerate(mentions):
+        for i, _mention in enumerate(mentions):
             # Get embeddings for this mention
             mention_emb = mention_embeddings[i : i + 1]  # Keep batch dimension
             context_emb = context_embeddings[i : i + 1]  # Keep batch dimension
@@ -778,11 +780,11 @@ class ConsensusModule(nn.Module):
 
     def compute_onenet_losses(
         self,
-        predictions: List[EntityPrediction],
-        gold_entities: List[Dict],
+        predictions: list[EntityPrediction],
+        gold_entities: list[dict],
         contextual_scores: torch.Tensor,
         prior_scores: torch.Tensor,
-    ) -> Dict[str, torch.Tensor]:
+    ) -> dict[str, torch.Tensor]:
         """
         Compute losses for OneNet training.
 
@@ -849,7 +851,7 @@ class ConsensusModule(nn.Module):
 
         return losses
 
-    def create_method_prediction_from_relik(self, relik_results: Dict) -> MethodPrediction:
+    def create_method_prediction_from_relik(self, relik_results: dict) -> MethodPrediction:
         """
         Convert ReLiK results to MethodPrediction format.
 

@@ -5,7 +5,7 @@ Implements a Reader that takes text and retrieved candidates and performs
 entity linking and/or relation extraction in a single forward pass.
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 import torch
 import torch.nn as nn
@@ -103,7 +103,7 @@ class ReLiKReader(nn.Module):
         attention_mask: torch.Tensor,
         num_passages: Optional[int] = None,
         passage_mask: Optional[torch.Tensor] = None,
-    ) -> Dict[str, torch.Tensor]:
+    ) -> dict[str, torch.Tensor]:
         """
         Forward pass through the Reader.
 
@@ -173,7 +173,7 @@ class ReLiKReader(nn.Module):
         self,
         text: str,
         span_threshold: float = 0.5,
-    ) -> List[Tuple[int, int, str]]:
+    ) -> list[tuple[int, int, str]]:
         """
         Predict entity spans in text.
 
@@ -234,9 +234,9 @@ class ReLiKReader(nn.Module):
     def link_entities(
         self,
         text: str,
-        candidates: List[Dict[str, Any]],
+        candidates: list[dict[str, Any]],
         entity_threshold: float = 0.5,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Link entities in text to candidates.
 
@@ -277,9 +277,9 @@ class ReLiKReader(nn.Module):
     def extract_relations(
         self,
         text: str,
-        relation_types: List[str],
+        relation_types: list[str],
         relation_threshold: float = 0.5,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Extract relations from text.
 
@@ -292,7 +292,7 @@ class ReLiKReader(nn.Module):
             List of extracted relations (subject, relation, object)
         """
         # First detect entity spans
-        spans = self.predict_spans(text)
+        self.predict_spans(text)
 
         # Then extract relations between span pairs
         # This is a simplified placeholder
