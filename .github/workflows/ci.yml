@@ -66,9 +66,9 @@ jobs:
 
       - name: Run tests with coverage (excluding E2E tests)
         run: |
-          uv run pytest tests/ -v -m "not e2e" --cov=src/entity_resolution --cov-report=xml --cov-report=term-missing
+          uv run pytest tests/ -v -m "not e2e" --cov=src/entity_resolution --cov-report=xml --cov-report=term-missing --import-mode=importlib
         env:
-          PYTHONPATH: ${{ github.workspace }}/src
+          PYTHONPATH: ${{ github.workspace }}
 
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.11'
