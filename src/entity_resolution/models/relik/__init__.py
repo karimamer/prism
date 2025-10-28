@@ -17,16 +17,38 @@ Key Components:
 """
 
 from .config import ReLiKConfig
-from .model import ReLiKModel, create_relik_model
+from .confidence_calibration import (
+    ConfidenceCalibrator,
+    PlattScaler,
+    TemperatureScaler,
+)
+from .dynamic_index import DynamicIndexManager
+from .hard_negative_mining import HardNegativeMiner
+from .linker import CompleteEntityLinker, create_entity_linker
 from .reader import ReLiKReader
+from .reader_improved import ImprovedReLiKReader
+from .relation_extractor import ReLiKRelationExtractor, create_relation_extractor
 from .retriever import ReLiKRetriever
+from .tokenizer import ReLiKTokenizer
+from .unified_integration import ReLiKSystem, create_enhanced_relik_integration
 
 __all__ = [
     "ReLiKConfig",
     "ReLiKRetriever",
     "ReLiKReader",
-    "ReLiKModel",
-    "create_relik_model",
+    "ReLiKTokenizer",
+    "ImprovedReLiKReader",
+    "CompleteEntityLinker",
+    "create_entity_linker",
+    "ReLiKRelationExtractor",
+    "create_relation_extractor",
+    "HardNegativeMiner",
+    "ConfidenceCalibrator",
+    "TemperatureScaler",
+    "PlattScaler",
+    "DynamicIndexManager",
+    "ReLiKSystem",
+    "create_enhanced_relik_integration",
 ]
 
 __version__ = "1.0.0"

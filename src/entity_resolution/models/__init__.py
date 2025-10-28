@@ -34,7 +34,10 @@ from entity_resolution.models.output import (
     create_unified_output,
 )
 from entity_resolution.models.reader import EntityReader
-from entity_resolution.models.relik import ReLiKConfig, ReLiKModel
+from entity_resolution.models.relik import (
+    ReLiKSystem,
+    create_enhanced_relik_integration,
+)
 from entity_resolution.models.resolution_processor import EntityResolutionProcessor
 
 # Base components
@@ -54,8 +57,8 @@ __all__ = [
     "ATGConfig",
     "ImprovedATGModel",
     # ReLiK
-    "ReLiKConfig",
-    "ReLiKModel",
+    "ReLiKSystem",
+    "create_enhanced_relik_integration",
     # SPEL
     "SPELConfig",
     "SPELModel",
