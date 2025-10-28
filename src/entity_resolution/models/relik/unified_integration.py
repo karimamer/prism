@@ -35,7 +35,6 @@ class ReLiKSystem:
         self,
         retriever_model: str = "microsoft/deberta-v3-small",
         reader_model: str = "microsoft/deberta-v3-base",
-        use_improved_reader: bool = True,
         enable_relation_extraction: bool = False,
         enable_calibration: bool = False,
         enable_dynamic_updates: bool = True,
@@ -47,8 +46,7 @@ class ReLiKSystem:
 
         Args:
             retriever_model: Model for retrieval
-            reader_model: Model for reading
-            use_improved_reader: Use ImprovedReLiKReader (vs basic)
+            reader_model: Model for reading (uses ImprovedReLiKReader)
             enable_relation_extraction: Enable relation extraction
             enable_calibration: Enable confidence calibration
             enable_dynamic_updates: Enable dynamic KB updates
@@ -56,7 +54,6 @@ class ReLiKSystem:
             **kwargs: Additional arguments
         """
         self.device = device
-        self.use_improved_reader = use_improved_reader
         self.enable_relation_extraction = enable_relation_extraction
         self.enable_calibration = enable_calibration
         self.enable_dynamic_updates = enable_dynamic_updates
@@ -69,27 +66,16 @@ class ReLiKSystem:
             use_faiss=kwargs.get("use_faiss", True),
         )
 
-        # Create reader (improved or basic)
-        if use_improved_reader:
-            self.reader = ImprovedReLiKReader(
-                model_name=reader_model,
-                max_seq_length=kwargs.get("max_seq_length", 1024),
-                num_entity_types=kwargs.get("num_entity_types", 4),
-                dropout=kwargs.get("dropout", 0.1),
-                use_entity_linking=True,
-                use_relation_extraction=enable_relation_extraction,
-                max_span_length=kwargs.get("max_span_length", 10),
-            )
-        else:
-            from .reader import ReLiKReader
-
-            self.reader = ReLiKReader(
-                model_name=reader_model,
-                max_seq_length=kwargs.get("max_seq_length", 1024),
-                num_entity_types=kwargs.get("num_entity_types", 4),
-                use_entity_linking=True,
-                use_relation_extraction=enable_relation_extraction,
-            )
+        # Create improved reader (always use improved version)
+        self.reader = ImprovedReLiKReader(
+            model_name=reader_model,
+            max_seq_length=kwargs.get("max_seq_length", 1024),
+            num_entity_types=kwargs.get("num_entity_types", 4),
+            dropout=kwargs.get("dropout", 0.1),
+            use_entity_linking=True,
+            use_relation_extraction=enable_relation_extraction,
+            max_span_length=kwargs.get("max_span_length", 10),
+        )
 
         # Create complete entity linker
         self.linker = CompleteEntityLinker(self.retriever, self.reader, device=device)
@@ -389,7 +375,6 @@ def create_enhanced_relik_integration(
     final_config = {
         "retriever_model": "microsoft/deberta-v3-small",
         "reader_model": "microsoft/deberta-v3-base",
-        "use_improved_reader": True,
         "enable_relation_extraction": False,
         "enable_calibration": False,
         "enable_dynamic_updates": True,

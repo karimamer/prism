@@ -248,7 +248,6 @@ class UnifiedEntityResolutionSystem(nn.Module):
                         "retriever_model": self.config.relik_retriever_model
                         or self.config.retriever_model,
                         "reader_model": self.config.relik_reader_model or self.config.reader_model,
-                        "use_improved_reader": True,  # Always use improved reader
                         "enable_relation_extraction": self.config.relik_use_re,
                         "enable_calibration": getattr(
                             self.config, "relik_enable_calibration", False

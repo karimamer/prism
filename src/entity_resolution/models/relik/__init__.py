@@ -25,7 +25,6 @@ from .confidence_calibration import (
 from .dynamic_index import DynamicIndexManager
 from .hard_negative_mining import HardNegativeMiner
 from .linker import CompleteEntityLinker, create_entity_linker
-from .reader import ReLiKReader
 from .reader_improved import ImprovedReLiKReader
 from .relation_extractor import ReLiKRelationExtractor, create_relation_extractor
 from .retriever import ReLiKRetriever
@@ -35,7 +34,6 @@ from .unified_integration import ReLiKSystem, create_enhanced_relik_integration
 __all__ = [
     "ReLiKConfig",
     "ReLiKRetriever",
-    "ReLiKReader",
     "ReLiKTokenizer",
     "ImprovedReLiKReader",
     "CompleteEntityLinker",
