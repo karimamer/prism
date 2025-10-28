@@ -304,6 +304,7 @@ class EntityKnowledgeBase:
         entity_id: str,
         entity_data: dict[str, Any],
         entity_embedding: Optional[np.ndarray] = None,
+        save_to_disk: bool = True,
     ):
         """
         Add a new entity to the knowledge base.
@@ -312,31 +313,296 @@ class EntityKnowledgeBase:
             entity_id: Entity ID
             entity_data: Entity data
             entity_embedding: Optional entity embedding
+            save_to_disk: Whether to save changes to disk
         """
+        # Check if entity already exists
+        if entity_id in self.entities:
+            logger.warning(f"Entity {entity_id} already exists, use update_entity instead")
+            return
+
         # Add entity to storage
         self.entities[entity_id] = entity_data
 
         # Add entity to index if embedding is provided
         if entity_embedding is not None:
-            # Ensure embedding is in correct format
-            if isinstance(entity_embedding, torch.Tensor):
-                entity_embedding = entity_embedding.detach().cpu().numpy()
-
-            # Reshape if needed
-            if len(entity_embedding.shape) == 1:
-                entity_embedding = entity_embedding.reshape(1, -1)
-
-            # Convert to float32
-            entity_embedding = entity_embedding.astype(np.float32)
-
-            # Add to index
-            self.index.add(entity_embedding)
-
-            # Update entity IDs
-            if hasattr(self, "entity_ids"):
-                self.entity_ids.append(entity_id)
-            else:
-                self.entity_ids = [entity_id]
+            self._add_embedding_to_index(entity_id, entity_embedding)
 
         # Save entity to cache
+        if save_to_disk:
+            self._save_entities_to_cache()
+            self._save_index()
+
+        logger.debug(f"Added entity {entity_id}")
+
+    def update_entity(
+        self,
+        entity_id: str,
+        entity_data: dict[str, Any],
+        entity_embedding: Optional[np.ndarray] = None,
+        save_to_disk: bool = True,
+    ):
+        """
+        Update an existing entity in the knowledge base.
+
+        Args:
+            entity_id: Entity ID
+            entity_data: New entity data
+            entity_embedding: Optional new entity embedding
+            save_to_disk: Whether to save changes to disk
+        """
+        if entity_id not in self.entities:
+            logger.warning(f"Entity {entity_id} not found, use add_entity instead")
+            return
+
+        # Update entity data
+        self.entities[entity_id] = entity_data
+
+        # Update embedding if provided
+        if entity_embedding is not None:
+            # For FAISS, we need to rebuild the index (no in-place updates)
+            # Mark for rebuild or remove and re-add
+            if hasattr(self, "entity_ids") and entity_id in self.entity_ids:
+                # Remove old and add new
+                self._remove_embedding_from_index(entity_id)
+                self._add_embedding_to_index(entity_id, entity_embedding)
+
+        # Save changes
+        if save_to_disk:
+            self._save_entities_to_cache()
+            self._save_index()
+
+        logger.debug(f"Updated entity {entity_id}")
+
+    def remove_entity(
+        self,
+        entity_id: str,
+        save_to_disk: bool = True,
+    ):
+        """
+        Remove an entity from the knowledge base.
+
+        Args:
+            entity_id: Entity ID
+            save_to_disk: Whether to save changes to disk
+        """
+        if entity_id not in self.entities:
+            logger.warning(f"Entity {entity_id} not found")
+            return
+
+        # Remove from entity storage
+        del self.entities[entity_id]
+
+        # Remove from index
+        if hasattr(self, "entity_ids") and entity_id in self.entity_ids:
+            self._remove_embedding_from_index(entity_id)
+
+        # Save changes
+        if save_to_disk:
+            self._save_entities_to_cache()
+            self._save_index()
+
+        logger.debug(f"Removed entity {entity_id}")
+
+    def batch_add_entities(
+        self,
+        entities: dict[str, dict[str, Any]],
+        embeddings: Optional[dict[str, np.ndarray]] = None,
+        save_to_disk: bool = True,
+    ):
+        """
+        Add multiple entities at once (more efficient).
+
+        Args:
+            entities: Dictionary of entity_id -> entity_data
+            embeddings: Optional dictionary of entity_id -> embedding
+            save_to_disk: Whether to save changes to disk
+        """
+        for entity_id, entity_data in entities.items():
+            embedding = embeddings.get(entity_id) if embeddings else None
+            self.add_entity(entity_id, entity_data, embedding, save_to_disk=False)
+
+        # Save once after all additions
+        if save_to_disk:
+            self._save_entities_to_cache()
+            self._save_index()
+
+        logger.info(f"Batch added {len(entities)} entities")
+
+    def batch_remove_entities(
+        self,
+        entity_ids: list[str],
+        save_to_disk: bool = True,
+    ):
+        """
+        Remove multiple entities at once (more efficient).
+
+        Args:
+            entity_ids: List of entity IDs to remove
+            save_to_disk: Whether to save changes to disk
+        """
+        for entity_id in entity_ids:
+            self.remove_entity(entity_id, save_to_disk=False)
+
+        # Save once after all removals
+        if save_to_disk:
+            self._save_entities_to_cache()
+            self._save_index()
+
+        logger.info(f"Batch removed {len(entity_ids)} entities")
+
+    def _add_embedding_to_index(self, entity_id: str, entity_embedding: np.ndarray):
+        """
+        Add embedding to FAISS index.
+
+        Args:
+            entity_id: Entity ID
+            entity_embedding: Entity embedding
+        """
+        # Ensure embedding is in correct format
+        if isinstance(entity_embedding, torch.Tensor):
+            entity_embedding = entity_embedding.detach().cpu().numpy()
+
+        # Reshape if needed
+        if len(entity_embedding.shape) == 1:
+            entity_embedding = entity_embedding.reshape(1, -1)
+
+        # Convert to float32
+        entity_embedding = entity_embedding.astype(np.float32)
+
+        # Verify dimension
+        if entity_embedding.shape[1] != self.dimension:
+            raise ValueError(
+                f"Embedding dimension {entity_embedding.shape[1]} does not match "
+                f"index dimension {self.dimension}"
+            )
+
+        # Add to index
+        self.index.add(entity_embedding)
+
+        # Update entity IDs
+        if hasattr(self, "entity_ids"):
+            self.entity_ids.append(entity_id)
+        else:
+            self.entity_ids = [entity_id]
+
+    def _remove_embedding_from_index(self, entity_id: str):
+        """
+        Remove embedding from FAISS index.
+
+        Note: FAISS doesn't support efficient removal, so we mark for rebuild.
+        """
+        if not hasattr(self, "entity_ids"):
+            return
+
+        if entity_id in self.entity_ids:
+            # Mark that index needs rebuilding
+            if not hasattr(self, "_needs_rebuild"):
+                self._needs_rebuild = True
+
+            # Remove from entity_ids list
+            self.entity_ids.remove(entity_id)
+
+            logger.debug(f"Marked entity {entity_id} for removal from index")
+
+    def rebuild_index(self, entity_embeddings: dict[str, np.ndarray]):
+        """
+        Rebuild the entire FAISS index.
+
+        Use this after many updates/removals for optimal performance.
+
+        Args:
+            entity_embeddings: Dictionary mapping entity IDs to embeddings
+        """
+        logger.info("Rebuilding index...")
+        self.build_index(entity_embeddings)
+        self._needs_rebuild = False
+        logger.info("Index rebuilt successfully")
+
+    def needs_rebuild(self) -> bool:
+        """
+        Check if index needs rebuilding.
+
+        Returns:
+            True if rebuild is needed
+        """
+        return getattr(self, "_needs_rebuild", False)
+
+    def _save_index(self):
+        """Save FAISS index to disk."""
+        if self.index is None:
+            return
+
+        index_file = os.path.join(self.index_path, "entity_index.faiss")
+
+        try:
+            if not self.use_gpu:
+                faiss.write_index(self.index, index_file)
+            else:
+                # Convert GPU index to CPU for saving
+                cpu_index = faiss.index_gpu_to_cpu(self.index)
+                faiss.write_index(cpu_index, index_file)
+
+            # Save entity IDs
+            if hasattr(self, "entity_ids"):
+                ids_file = os.path.join(self.index_path, "entity_ids.json")
+                with open(ids_file, "w", encoding="utf-8") as f:
+                    json.dump(self.entity_ids, f)
+
+            logger.debug("Saved index to disk")
+        except Exception as e:
+            logger.error(f"Failed to save index: {e}")
+
+    def get_statistics(self) -> dict[str, Any]:
+        """
+        Get statistics about the knowledge base.
+
+        Returns:
+            Dictionary with statistics
+        """
+        stats = {
+            "total_entities": len(self.entities),
+            "indexed_entities": len(self.entity_ids) if hasattr(self, "entity_ids") else 0,
+            "dimension": self.dimension,
+            "use_gpu": self.use_gpu,
+            "needs_rebuild": self.needs_rebuild(),
+            "index_path": self.index_path,
+            "cache_dir": self.cache_dir,
+        }
+
+        return stats
+
+    def compact(self):
+        """
+        Compact the knowledge base by removing orphaned data.
+
+        Removes entities from storage that are not in the index.
+        """
+        if not hasattr(self, "entity_ids"):
+            logger.warning("No index loaded, cannot compact")
+            return
+
+        # Find entities in storage but not in index
+        orphaned = set(self.entities.keys()) - set(self.entity_ids)
+
+        if orphaned:
+            logger.info(f"Found {len(orphaned)} orphaned entities, removing...")
+            for entity_id in orphaned:
+                del self.entities[entity_id]
+
+            self._save_entities_to_cache()
+            logger.info("Compaction complete")
+        else:
+            logger.info("No orphaned entities found")
+
+    def clear(self):
+        """Clear all entities and reset the index."""
+        self.entities = {}
+        self._initialize_index()
+        self.entity_ids = []
+        self._needs_rebuild = False
+
+        # Clear cache
         self._save_entities_to_cache()
+        self._save_index()
+
+        logger.info("Knowledge base cleared")

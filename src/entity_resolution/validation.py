@@ -273,6 +273,25 @@ class SystemConfig(BaseModel):
         default=0.5, ge=0.0, le=1.0, description="ReLiK relation extraction threshold"
     )
 
+    # ReLiK enhanced features configurations
+    relik_enable_calibration: bool = Field(
+        default=False,
+        description="Enable confidence calibration for ReLiK predictions",
+    )
+    relik_enable_dynamic_updates: bool = Field(
+        default=True,
+        description="Enable dynamic knowledge base updates for ReLiK",
+    )
+    relik_rebuild_threshold: int = Field(
+        default=1000,
+        ge=1,
+        description="Number of KB updates before triggering automatic index rebuild",
+    )
+    relik_auto_rebuild: bool = Field(
+        default=True,
+        description="Automatically rebuild index when rebuild threshold is reached",
+    )
+
     # SPEL-specific configurations
     spel_model_name: Optional[str] = Field(
         default=None, description="SPEL encoder model (defaults to 'roberta-base' if None)"

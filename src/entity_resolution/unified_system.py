@@ -20,7 +20,10 @@ from entity_resolution.models.consensus import ConsensusModule
 from entity_resolution.models.entity_encoder import EntityFocusedEncoder
 from entity_resolution.models.output import UnifiedSystemOutput, create_unified_output
 from entity_resolution.models.reader import EntityReader
-from entity_resolution.models.relik import ReLiKConfig, ReLiKModel
+from entity_resolution.models.relik.unified_integration import (
+    ReLiKSystem,
+    create_enhanced_relik_integration,
+)
 from entity_resolution.models.resolution_processor import EntityResolutionProcessor
 from entity_resolution.models.retriever import EntityRetriever
 from entity_resolution.models.spel import SPELConfig, SPELModel
@@ -232,45 +235,49 @@ class UnifiedEntityResolutionSystem(nn.Module):
         else:
             self.atg_model = None
 
-        # Initialize ReLiK model (new component)
+        # Initialize Enhanced ReLiK Integration (new component with all improvements)
         if self.config.use_relik:
-            logger.info("Initializing ReLiK Model")
+            logger.info("Initializing Enhanced ReLiK Integration")
             try:
                 # Get entity and relation types from config or use defaults
                 entity_types = self.config.entity_types or ["PER", "ORG", "LOC", "MISC"]
-                relation_types = self.config.relation_types or [
-                    "Work_For",
-                    "Based_In",
-                    "Located_In",
-                ]
 
-                # Create ReLiK config
-                relik_config = ReLiKConfig(
-                    retriever_model=self.config.relik_retriever_model
-                    or self.config.retriever_model,
-                    reader_model=self.config.relik_reader_model or self.config.reader_model,
-                    max_seq_length=self.config.max_seq_length,
-                    entity_types=entity_types,
-                    relation_types=relation_types,
-                    use_entity_linking=self.config.relik_use_el,
-                    use_relation_extraction=self.config.relik_use_re,
-                    dropout=self.config.dropout,
-                    gradient_checkpointing=self.config.gradient_checkpointing,
-                    top_k=self.config.relik_top_k,
-                    num_el_passages=self.config.relik_num_el_passages,
-                    num_re_passages=self.config.relik_num_re_passages,
-                    span_threshold=self.config.relik_span_threshold,
-                    entity_threshold=self.config.relik_entity_threshold,
-                    relation_threshold=self.config.relik_relation_threshold,
+                # Create enhanced integration with all features
+                self.relik_integration = create_enhanced_relik_integration(
+                    {
+                        "retriever_model": self.config.relik_retriever_model
+                        or self.config.retriever_model,
+                        "reader_model": self.config.relik_reader_model or self.config.reader_model,
+                        "use_improved_reader": True,  # Always use improved reader
+                        "enable_relation_extraction": self.config.relik_use_re,
+                        "enable_calibration": getattr(
+                            self.config, "relik_enable_calibration", False
+                        ),
+                        "enable_dynamic_updates": getattr(
+                            self.config, "relik_enable_dynamic_updates", True
+                        ),
+                        "device": str(self.device),
+                        "max_query_length": 64,
+                        "max_passage_length": 64,
+                        "max_seq_length": self.config.max_seq_length,
+                        "num_entity_types": len(entity_types),
+                        "dropout": self.config.dropout,
+                        "max_span_length": 10,
+                        "rebuild_threshold": getattr(self.config, "relik_rebuild_threshold", 1000),
+                        "auto_rebuild": getattr(self.config, "relik_auto_rebuild", True),
+                        "use_faiss": True,
+                    }
                 )
 
-                self.relik_model = ReLiKModel(relik_config)
-                self.relik_model.to(self.device)
-                logger.info("ReLiK Model initialized successfully")
+                # Keep reference to linker for compatibility
+                self.relik_model = self.relik_integration.linker
+
+                logger.info("Enhanced ReLiK Integration initialized successfully")
             except Exception as e:
-                logger.error(f"Failed to initialize ReLiK model: {e}")
-                raise RuntimeError(f"ReLiK model initialization failed: {e}") from e
+                logger.error(f"Failed to initialize Enhanced ReLiK: {e}")
+                raise RuntimeError(f"Enhanced ReLiK initialization failed: {e}") from e
         else:
+            self.relik_integration = None
             self.relik_model = None
 
         # Initialize SPEL model (new component)
@@ -455,9 +462,9 @@ class UnifiedEntityResolutionSystem(nn.Module):
             self.retriever.build_index(entity_dict)
 
             # Load entities into model-specific components
-            if self.relik_model is not None:
+            if self.relik_integration is not None:
                 try:
-                    # Convert entity format for RELiK (expects 'text' field)
+                    # Convert entity format for ReLiK (expects 'text' field)
                     relik_entities = {}
                     for eid, entity in entity_dict.items():
                         relik_entity = entity.copy()
@@ -468,10 +475,10 @@ class UnifiedEntityResolutionSystem(nn.Module):
                             relik_entity["text"] = relik_entity.get("name", f"Entity {eid}")
                         relik_entities[eid] = relik_entity
 
-                    self.relik_model.load_entities(relik_entities)
-                    logger.info("Loaded entities into RELiK model")
+                    self.relik_integration.load_entities(relik_entities)
+                    logger.info("Loaded entities into Enhanced ReLiK Integration")
                 except Exception as e:
-                    logger.warning(f"Failed to load entities into RELiK model: {e}")
+                    logger.warning(f"Failed to load entities into ReLiK integration: {e}")
 
             if self.spel_model is not None:
                 try:
@@ -777,41 +784,66 @@ class UnifiedEntityResolutionSystem(nn.Module):
             return {"entities": [], "relations": [], "error": str(e)}
 
     def _process_with_relik(self, text: str, candidate_entities: list[dict]) -> dict:
-        """Process text with RELiK model for retrieval-based linking."""
+        """
+        Process text using Enhanced ReLiK Integration.
+
+        Args:
+            text: Input text
+            candidate_entities: Optional candidate entities (not used by ReLiK)
+
+        Returns:
+            Dictionary with entities and relations
+        """
+        if self.relik_integration is None:
+            return {"entities": [], "relations": [], "error": "ReLiK not initialized"}
+
         try:
-            # Check if RELiK model is ready
-            if not self._is_model_ready("relik"):
-                logger.warning("RELiK model not ready, using reader fallback")
-                results = self.reader.process_text(text, candidate_entities)
-            elif hasattr(self.relik_model, "process_text"):
-                try:
-                    # RELiK's process_text expects (text, top_k, return_candidates)
-                    # not candidate_entities
-                    results = self.relik_model.process_text(text, top_k=self.config.relik_top_k)
-                except RuntimeError as e:
-                    if "Entity KB not loaded" in str(e) or "Index not built" in str(e):
-                        logger.warning("RELiK entity KB not properly loaded, using reader fallback")
-                        results = self.reader.process_text(text, candidate_entities)
-                    else:
-                        raise
-            elif hasattr(self.relik_model, "predict"):
-                # RELiK predict may have different signature - use reader fallback
-                results = self.reader.process_text(text, candidate_entities)
-            elif hasattr(self.relik_model, "forward"):
-                # Use retriever-reader pipeline
-                results = self._process_relik_pipeline(text, candidate_entities)
-            else:
-                # Fallback to reader
-                results = self.reader.process_text(text, candidate_entities)
+            # Process with all enhanced features
+            result = self.relik_integration.process_text(
+                text,
+                top_k_retrieval=self.config.relik_top_k,
+                top_k_linking=10,
+                span_threshold=self.config.relik_span_threshold,
+                entity_threshold=self.config.relik_entity_threshold,
+                extract_relations=self.config.relik_use_re,
+                relation_types=self.config.relation_types,
+                relation_threshold=self.config.relik_relation_threshold,
+            )
+
+            # Format output
+            formatted_entities = []
+            for entity in result.get("entities", []):
+                formatted_entity = {
+                    "start": entity["start"],
+                    "end": entity["end"],
+                    "text": entity["text"],
+                    "entity_id": entity.get("best_entity", {}).get("entity_id"),
+                    "entity_name": entity.get("best_entity", {}).get("entity_name"),
+                    "confidence": entity.get("best_entity", {}).get("score", 0.0),
+                    "span_confidence": entity.get("span_score", 0.0),
+                    "candidates": entity.get("candidates", []),
+                }
+                formatted_entities.append(formatted_entity)
+
+            formatted_relations = []
+            if "relations" in result:
+                for relation in result["relations"]:
+                    formatted_relation = {
+                        "subject": relation["subject"],
+                        "relation": relation["relation"],
+                        "object": relation["object"],
+                        "confidence": relation["confidence"],
+                    }
+                    formatted_relations.append(formatted_relation)
 
             return {
-                "entities": results.get("entities", []),
-                "relations": results.get("relations", []),
-                "confidence_avg": self._calculate_avg_confidence(results.get("entities", [])),
-                "processing_time": results.get("processing_time", 0.0),
+                "entities": formatted_entities,
+                "relations": formatted_relations,
+                "confidence_avg": self._calculate_avg_confidence(formatted_entities),
             }
+
         except Exception as e:
-            logger.warning(f"RELiK model processing failed: {e}")
+            logger.error(f"ReLiK processing failed: {e}")
             return {"entities": [], "relations": [], "error": str(e)}
 
     def _process_with_spel(self, text: str, candidate_entities: list[dict]) -> dict:
@@ -1070,6 +1102,151 @@ class UnifiedEntityResolutionSystem(nn.Module):
         except Exception as e:
             logger.error(f"Batch processing failed: {e}")
             raise RuntimeError(f"Failed to process batch: {e}") from e
+
+    def add_entity_to_kb(
+        self,
+        entity_id: str,
+        entity_data: dict[str, Any],
+        immediate: bool = True,
+    ) -> None:
+        """
+        Add entity to knowledge base dynamically.
+
+        Args:
+            entity_id: Entity ID
+            entity_data: Entity data (must have 'text' or 'description' or 'name' field)
+            immediate: Apply immediately (rebuild index)
+
+        Raises:
+            ValueError: If entity data is invalid
+        """
+        # Add to ReLiK integration
+        if self.relik_integration is not None:
+            self.relik_integration.add_entity(entity_id, entity_data, immediate=immediate)
+            logger.info(f"Added entity {entity_id} to ReLiK knowledge base")
+        else:
+            logger.warning("ReLiK integration not initialized, cannot add entity")
+
+    def update_entity_in_kb(
+        self,
+        entity_id: str,
+        entity_data: dict[str, Any],
+        immediate: bool = True,
+    ) -> None:
+        """
+        Update entity in knowledge base dynamically.
+
+        Args:
+            entity_id: Entity ID
+            entity_data: Updated entity data
+            immediate: Apply immediately (rebuild index)
+
+        Raises:
+            ValueError: If entity data is invalid
+        """
+        # Update in ReLiK integration
+        if self.relik_integration is not None:
+            self.relik_integration.update_entity(entity_id, entity_data, immediate=immediate)
+            logger.info(f"Updated entity {entity_id} in ReLiK knowledge base")
+        else:
+            logger.warning("ReLiK integration not initialized, cannot update entity")
+
+    def remove_entity_from_kb(
+        self,
+        entity_id: str,
+        immediate: bool = True,
+    ) -> None:
+        """
+        Remove entity from knowledge base dynamically.
+
+        Args:
+            entity_id: Entity ID
+            immediate: Apply immediately (rebuild index)
+        """
+        # Remove from ReLiK integration
+        if self.relik_integration is not None:
+            self.relik_integration.remove_entity(entity_id, immediate=immediate)
+            logger.info(f"Removed entity {entity_id} from ReLiK knowledge base")
+        else:
+            logger.warning("ReLiK integration not initialized, cannot remove entity")
+
+    def get_kb_statistics(self) -> dict[str, Any]:
+        """
+        Get knowledge base statistics.
+
+        Returns:
+            Statistics dictionary with info about KB size, index status, etc.
+        """
+        stats = {}
+
+        # ReLiK integration stats
+        if self.relik_integration is not None:
+            stats["relik"] = self.relik_integration.get_statistics()
+
+        # Retriever stats
+        if hasattr(self.retriever, "get_index_size"):
+            stats["retriever_index_size"] = self.retriever.get_index_size()
+
+        return stats
+
+    def fit_confidence_calibrators(
+        self,
+        validation_data: dict[str, Any],
+    ) -> None:
+        """
+        Fit confidence calibrators using validation data.
+
+        Args:
+            validation_data: Dictionary with validation scores and labels.
+                Expected keys:
+                - 'span_scores': Tensor of span detection scores
+                - 'span_labels': Tensor of span detection labels (0/1)
+                - 'entity_scores': Tensor of entity linking scores
+                - 'entity_labels': Tensor of entity linking labels (0/1)
+                - 'relation_scores': Tensor of relation extraction scores (optional)
+                - 'relation_labels': Tensor of relation extraction labels (optional)
+
+        Raises:
+            RuntimeError: If ReLiK integration is not initialized
+        """
+        if self.relik_integration is None:
+            raise RuntimeError("ReLiK integration not initialized")
+
+        try:
+            self.relik_integration.fit_calibrator(validation_data)
+            logger.info("Fitted ReLiK confidence calibrators")
+        except Exception as e:
+            logger.error(f"Failed to fit calibrators: {e}")
+            raise
+
+    def get_training_batch_relik(
+        self,
+        queries: list[str],
+        positive_ids: list[str],
+    ) -> dict[str, torch.Tensor]:
+        """
+        Get training batch with hard negatives for ReLiK retriever.
+
+        Args:
+            queries: Query texts (e.g., entity mentions in context)
+            positive_ids: Positive entity IDs corresponding to each query
+
+        Returns:
+            Training batch dictionary with:
+                - query_ids: Tokenized query input IDs
+                - query_mask: Query attention mask
+                - positive_ids: Tokenized positive entity input IDs
+                - positive_mask: Positive attention mask
+                - negative_ids: Tokenized hard negative input IDs
+                - negative_mask: Negative attention mask
+
+        Raises:
+            RuntimeError: If ReLiK integration is not initialized
+        """
+        if self.relik_integration is None:
+            raise RuntimeError("ReLiK integration not initialized")
+
+        return self.relik_integration.get_training_batch(queries, positive_ids)
 
     def save(self, path: Union[str, Path]) -> None:
         """
