@@ -1,5 +1,5 @@
 """
-Test script for SPEL Model.
+Unit tests for SPEL Model.
 
 Tests:
 1. SPEL configuration
@@ -9,6 +9,7 @@ Tests:
 5. Integration with UnifiedEntityResolutionSystem
 """
 
+import pytest
 import torch
 
 from entity_resolution.models.spel import (
@@ -22,44 +23,56 @@ from entity_resolution.unified_system import UnifiedEntityResolutionSystem
 from entity_resolution.validation import SystemConfig
 
 
-def test_spel_config():
+@pytest.mark.unit
+class TestSPELConfig:
     """Test SPEL configuration."""
-    print("\n" + "=" * 80)
-    print("Testing SPEL Configuration")
-    print("=" * 80)
 
-    try:
+    def test_default_config(self):
+        """Test default SPEL configuration."""
+        config = SPELConfig()
+
+        assert config.model_name == "roberta-base"
+        assert config.max_seq_length == 512
+        assert config.fixed_candidate_set_size == 1000000
+        assert config.use_mention_specific_candidates is True
+
+    def test_custom_config(self):
+        """Test creating config with custom values."""
         config = SPELConfig(
-            model_name="roberta-base",
-            max_seq_length=512,
+            model_name="bert-base-uncased",
+            max_seq_length=256,
             fixed_candidate_set_size=500000,
             use_mention_specific_candidates=False,
             num_hard_negatives=5000,
         )
 
-        print(f"✓ Model name: {config.model_name}")
-        print(f"✓ Max sequence length: {config.max_seq_length}")
-        print(f"✓ Fixed candidate set size: {config.fixed_candidate_set_size}")
-        print(f"✓ Hard negatives: {config.num_hard_negatives}")
-        print(f"✓ Use context-sensitive aggregation: {config.use_context_sensitive_aggregation}")
-        print("✓ SPEL Configuration test passed!")
+        assert config.model_name == "bert-base-uncased"
+        assert config.max_seq_length == 256
+        assert config.fixed_candidate_set_size == 500000
+        assert config.num_hard_negatives == 5000
+        assert config.use_context_sensitive_aggregation is True
 
-    except Exception as e:
-        print(f"✗ SPEL Configuration test failed: {e}")
-        import traceback
+    @pytest.mark.parametrize("invalid_seq_length", [0, -1, 10000])
+    def test_invalid_max_seq_length(self, invalid_seq_length):
+        """Test that invalid max_seq_length raises error."""
+        with pytest.raises((ValueError, AssertionError)):
+            SPELConfig(max_seq_length=invalid_seq_length)
 
-        traceback.print_exc()
+    @pytest.mark.parametrize("invalid_candidate_size", [0, -1])
+    def test_invalid_candidate_set_size(self, invalid_candidate_size):
+        """Test that invalid candidate set size raises error."""
+        with pytest.raises((ValueError, AssertionError)):
+            SPELConfig(fixed_candidate_set_size=invalid_candidate_size)
 
 
-def test_candidate_set_manager():
+@pytest.mark.unit
+class TestCandidateSetManager:
     """Test candidate set manager."""
-    print("\n" + "=" * 80)
-    print("Testing Candidate Set Manager")
-    print("=" * 80)
 
-    try:
-        # Create manager with fixed candidates
-        fixed_candidates = [
+    @pytest.fixture
+    def fixed_candidates(self):
+        """Sample fixed candidates."""
+        return [
             "Barack_Obama",
             "United_States",
             "Apple_Inc",
@@ -67,62 +80,91 @@ def test_candidate_set_manager():
             "California",
         ]
 
-        manager = CandidateSetManager(fixed_candidates=fixed_candidates)
+    @pytest.fixture
+    def manager(self, fixed_candidates):
+        """Create candidate set manager."""
+        return CandidateSetManager(fixed_candidates=fixed_candidates)
 
-        print(f"✓ Created manager with {len(fixed_candidates)} fixed candidates")
-        print(f"✓ Vocabulary size: {manager.get_vocab_size()}")
+    def test_initialization(self, manager, fixed_candidates):
+        """Test manager initialization."""
+        assert manager.get_vocab_size() == len(fixed_candidates) + 1  # +1 for null entity
 
-        # Test adding mention-specific candidates
+    def test_add_mention_candidates(self, manager):
+        """Test adding mention-specific candidates."""
         manager.add_mention_candidates("Obama", ["Barack_Obama", "Michelle_Obama"])
-        print("✓ Added mention-specific candidates for 'Obama'")
 
-        # Test getting candidates
         candidates = manager.get_candidates_for_mention("Obama", use_mention_specific=True)
-        print(f"✓ Retrieved {len(candidates)} candidates for 'Obama'")
+        assert len(candidates) >= 2
+        assert "Barack_Obama" in candidates
 
-        # Test entity to index mapping
+    def test_get_candidates_fixed_only(self, manager, fixed_candidates):
+        """Test getting candidates without mention-specific."""
+        candidates = manager.get_candidates_for_mention("Obama", use_mention_specific=False)
+        assert candidates == fixed_candidates
+
+    def test_entity_index_mapping(self, manager):
+        """Test entity-index bidirectional mapping."""
         idx = manager.get_entity_idx("Barack_Obama")
         entity = manager.get_entity_from_idx(idx)
-        assert entity == "Barack_Obama", f"Expected 'Barack_Obama', got '{entity}'"
-        print("✓ Entity-index mapping works correctly")
 
-        print("✓ Candidate Set Manager test passed!")
+        assert entity == "Barack_Obama"
+        assert idx >= 0
 
-    except Exception as e:
-        print(f"✗ Candidate Set Manager test failed: {e}")
-        import traceback
+    def test_entity_not_in_vocab(self, manager):
+        """Test handling entity not in vocabulary."""
+        idx = manager.get_entity_idx("NonExistent_Entity")
+        # Should return null entity or raise error
+        assert idx >= 0  # Null entity index
 
-        traceback.print_exc()
+    def test_batch_add_candidates(self, manager):
+        """Test adding candidates for multiple mentions."""
+        mentions_to_candidates = {
+            "Apple": ["Apple_Inc", "Apple_(fruit)"],
+            "Jobs": ["Steve_Jobs", "Job_(role)"],
+        }
+
+        for mention, candidates in mentions_to_candidates.items():
+            manager.add_mention_candidates(mention, candidates)
+
+        # Verify all added
+        for mention in mentions_to_candidates:
+            candidates = manager.get_candidates_for_mention(mention, use_mention_specific=True)
+            assert len(candidates) > 0
 
 
-def test_prediction_aggregator():
+@pytest.mark.unit
+class TestPredictionAggregator:
     """Test prediction aggregator."""
-    print("\n" + "=" * 80)
-    print("Testing Prediction Aggregator")
-    print("=" * 80)
 
-    try:
+    @pytest.fixture
+    def aggregator(self):
+        """Create prediction aggregator."""
         from transformers import RobertaTokenizer
 
         tokenizer = RobertaTokenizer.from_pretrained("roberta-base")
-        aggregator = PredictionAggregator(
+        return PredictionAggregator(
             tokenizer=tokenizer,
             filter_punctuation=True,
             filter_function_words=True,
         )
 
-        print("✓ Created prediction aggregator")
-        print(f"✓ Function words to filter: {len(aggregator.FUNCTION_WORDS)}")
-        print(f"✓ Punctuation to filter: {len(aggregator.PUNCTUATION)}")
+    def test_initialization(self, aggregator):
+        """Test aggregator initialization."""
+        assert aggregator.filter_punctuation is True
+        assert aggregator.filter_function_words is True
+        assert len(aggregator.FUNCTION_WORDS) > 0
+        assert len(aggregator.PUNCTUATION) > 0
 
-        # Test aggregation (simplified example)
+    @pytest.mark.requires_model
+    def test_aggregate_predictions(self, aggregator):
+        """Test aggregating subword predictions."""
         text = "Barack Obama was born in Hawaii."
         subword_predictions = [
             [("Barack_Obama", 0.9), ("O", 0.1)],
             [("Barack_Obama", 0.85), ("O", 0.15)],
             [("O", 0.95), ("Barack_Obama", 0.05)],
         ]
-        subword_to_word = [0, 0, 1]  # First two subwords are word 0, third is word 1
+        subword_to_word = [0, 0, 1]
 
         spans = aggregator.aggregate_subword_predictions(
             text=text,
@@ -130,36 +172,47 @@ def test_prediction_aggregator():
             subword_to_word_map=subword_to_word,
         )
 
-        print(f"✓ Aggregated predictions into {len(spans)} spans")
-        print("✓ Prediction Aggregator test passed!")
+        assert isinstance(spans, list)
+        # May or may not find spans depending on thresholds
 
-    except Exception as e:
-        print(f"✗ Prediction Aggregator test failed: {e}")
-        import traceback
+    def test_empty_predictions(self, aggregator):
+        """Test handling empty predictions."""
+        text = "Test text"
+        subword_predictions = []
+        subword_to_word = []
 
-        traceback.print_exc()
+        spans = aggregator.aggregate_subword_predictions(
+            text=text,
+            subword_predictions=subword_predictions,
+            subword_to_word_map=subword_to_word,
+        )
+
+        assert spans == []
 
 
-def test_spel_model():
+@pytest.mark.unit
+@pytest.mark.requires_model
+class TestSPELModel:
     """Test complete SPEL model."""
-    print("\n" + "=" * 80)
-    print("Testing Complete SPEL Model")
-    print("=" * 80)
 
-    try:
-        # Create model
-        model = create_spel_model(
+    @pytest.fixture
+    def small_model(self):
+        """Create small model for testing."""
+        return create_spel_model(
             model_name="roberta-base",
-            fixed_candidate_set_size=100,  # Small for testing
+            fixed_candidate_set_size=100,
             entity_types=["PER", "ORG", "LOC"],
         )
 
-        print("✓ Model created successfully")
-        print(f"✓ Encoder: {model.config.model_name}")
-        print(f"✓ Hidden size: {model.hidden_size}")
-        print(f"✓ Max sequence length: {model.config.max_seq_length}")
+    def test_model_creation(self, small_model):
+        """Test model creation."""
+        assert small_model is not None
+        assert small_model.encoder is not None
+        assert small_model.config.model_name == "roberta-base"
+        assert small_model.hidden_size == 768
 
-        # Load some test candidates
+    def test_load_candidates(self, small_model):
+        """Test loading candidate entities."""
         test_candidates = [
             "Barack_Obama",
             "United_States",
@@ -167,110 +220,93 @@ def test_spel_model():
             "Steve_Jobs",
         ]
 
-        model.load_candidate_sets(fixed_candidates=test_candidates)
+        small_model.load_candidate_sets(fixed_candidates=test_candidates)
 
-        print(f"✓ Loaded {len(test_candidates)} candidate entities")
-        print(f"✓ Vocabulary size: {model.candidate_manager.get_vocab_size()}")
-        print(f"✓ Classification head initialized: {model.classification_head is not None}")
+        assert small_model.candidate_manager.get_vocab_size() == len(test_candidates) + 1
+        assert small_model.classification_head is not None
 
-        print("✓ Complete SPEL Model test passed!")
-
-    except Exception as e:
-        print(f"✗ Complete SPEL Model test failed: {e}")
-        import traceback
-
-        traceback.print_exc()
-
-
-def test_spel_forward():
-    """Test SPEL forward pass."""
-    print("\n" + "=" * 80)
-    print("Testing SPEL Forward Pass")
-    print("=" * 80)
-
-    try:
-        # Create small model
-        model = create_spel_model(
-            model_name="roberta-base",
-            fixed_candidate_set_size=10,
-        )
-
-        # Load candidates
+    def test_forward_pass(self, small_model):
+        """Test forward pass."""
+        # Load candidates first
         test_candidates = ["Barack_Obama", "Apple_Inc", "California"]
-        model.load_candidate_sets(fixed_candidates=test_candidates)
+        small_model.load_candidate_sets(fixed_candidates=test_candidates)
 
         # Create dummy input
         batch_size = 2
         seq_len = 20
-        vocab_size = model.candidate_manager.get_vocab_size()
+        vocab_size = small_model.candidate_manager.get_vocab_size()
 
         input_ids = torch.randint(0, 1000, (batch_size, seq_len))
         attention_mask = torch.ones(batch_size, seq_len)
         labels = torch.randint(0, vocab_size, (batch_size, seq_len))
 
         # Forward pass
-        outputs = model(input_ids, attention_mask, labels=labels)
+        outputs = small_model(input_ids, attention_mask, labels=labels)
 
-        print(f"✓ Input shape: {input_ids.shape}")
-        print(f"✓ Logits shape: {outputs['logits'].shape}")
-        print(f"✓ Loss computed: {'loss' in outputs}")
-        print(f"✓ Loss value: {outputs['loss'].item():.4f}")
+        # Assertions
+        assert "logits" in outputs, "Output must contain logits"
+        assert "loss" in outputs, "Output must contain loss when labels provided"
+        assert outputs["logits"].shape == (batch_size, seq_len, vocab_size)
+        assert outputs["loss"].dtype == torch.float32
+        assert outputs["loss"] > 0, "Loss should be positive"
+        assert not torch.isnan(outputs["loss"]), "Loss should not be NaN"
 
-        print("✓ SPEL Forward Pass test passed!")
+    def test_forward_without_labels(self, small_model):
+        """Test forward pass without labels (inference)."""
+        test_candidates = ["Barack_Obama", "Apple_Inc"]
+        small_model.load_candidate_sets(fixed_candidates=test_candidates)
 
-    except Exception as e:
-        print(f"✗ SPEL Forward Pass test failed: {e}")
-        import traceback
+        batch_size = 1
+        seq_len = 10
+        input_ids = torch.randint(0, 1000, (batch_size, seq_len))
+        attention_mask = torch.ones(batch_size, seq_len)
 
-        traceback.print_exc()
+        outputs = small_model(input_ids, attention_mask)
+
+        assert "logits" in outputs
+        assert "loss" not in outputs  # No labels, so no loss
+
+    def test_gradient_flow(self, small_model):
+        """Test that gradients flow correctly."""
+        test_candidates = ["Entity1", "Entity2"]
+        small_model.load_candidate_sets(fixed_candidates=test_candidates)
+
+        input_ids = torch.randint(0, 1000, (1, 10))
+        attention_mask = torch.ones(1, 10)
+        labels = torch.randint(0, 3, (1, 10))
+
+        outputs = small_model(input_ids, attention_mask, labels=labels)
+        loss = outputs["loss"]
+
+        loss.backward()
+
+        # Check that gradients exist
+        assert small_model.classification_head.weight.grad is not None
 
 
-def test_unified_system_with_spel():
-    """Test UnifiedEntityResolutionSystem with SPEL."""
-    print("\n" + "=" * 80)
-    print("Testing UnifiedEntityResolutionSystem with SPEL")
-    print("=" * 80)
+@pytest.mark.integration
+@pytest.mark.requires_model
+class TestSPELIntegration:
+    """Test SPEL integration with unified system."""
 
-    try:
-        # Create config with SPEL enabled
+    def test_unified_system_with_spel(self):
+        """Test UnifiedEntityResolutionSystem with SPEL."""
         config = SystemConfig(
             use_spel=True,
             spel_model_name="roberta-base",
             spel_fixed_candidate_set_size=1000,
             entity_types=["PER", "ORG", "LOC"],
-            use_gpu=False,  # Use CPU for testing
+            use_gpu=False,
         )
 
-        print("Creating unified system with SPEL...")
         system = UnifiedEntityResolutionSystem(config)
 
-        print("✓ System initialized successfully!")
-        print(f"  - SPEL enabled: {'✓' if system.spel_model else '✗'}")
-        print(f"  - Device: {system.device}")
+        assert system.spel_model is not None
+        assert system.spel_model.config.model_name == "roberta-base"
+        assert system.spel_model.config.fixed_candidate_set_size == 1000
 
-        if system.spel_model:
-            print(f"  - SPEL model name: {system.spel_model.config.model_name}")
-            print(
-                f"  - Fixed candidate set size: {system.spel_model.config.fixed_candidate_set_size}"
-            )
-            print(f"  - Entity types: {len(system.spel_model.config.entity_types)}")
-
-        print("✓ UnifiedEntityResolutionSystem with SPEL test passed!")
-
-    except Exception as e:
-        print(f"✗ UnifiedEntityResolutionSystem with SPEL test failed: {e}")
-        import traceback
-
-        traceback.print_exc()
-
-
-def test_all_three_models():
-    """Test that ATG, ReLiK, and SPEL all work together."""
-    print("\n" + "=" * 80)
-    print("Testing All Three Models Together (ATG + ReLiK + SPEL)")
-    print("=" * 80)
-
-    try:
+    def test_all_models_together(self):
+        """Test that ATG, ReLiK, and SPEL work together."""
         config = SystemConfig(
             use_improved_atg=True,
             use_relik=True,
@@ -280,38 +316,14 @@ def test_all_three_models():
             use_gpu=False,
         )
 
-        print("Creating system with all three models...")
         system = UnifiedEntityResolutionSystem(config)
 
-        print("✓ System initialized successfully!")
-        print(f"  - ATG enabled: {'✓' if system.atg_model else '✗'}")
-        print(f"  - ReLiK enabled: {'✓' if system.relik_model else '✗'}")
-        print(f"  - SPEL enabled: {'✓' if system.spel_model else '✗'}")
-
-        # Verify all models are present
         assert system.atg_model is not None, "ATG should be enabled"
         assert system.relik_model is not None, "ReLiK should be enabled"
         assert system.spel_model is not None, "SPEL should be enabled"
 
-        print("\n✓ All three models working together successfully!")
-        print("  • ATG: Autoregressive entity-relation extraction")
-        print("  • ReLiK: Fast retriever-reader entity linking")
-        print("  • SPEL: Structured prediction entity linking")
-
-    except Exception as e:
-        print(f"✗ All three models test failed: {e}")
-        import traceback
-
-        traceback.print_exc()
-
-
-def test_backward_compatibility():
-    """Test that system works without SPEL (backward compatibility)."""
-    print("\n" + "=" * 80)
-    print("Testing Backward Compatibility (SPEL disabled)")
-    print("=" * 80)
-
-    try:
+    def test_backward_compatibility(self):
+        """Test system works without SPEL (backward compatibility)."""
         config = SystemConfig(
             use_spel=False,
             use_improved_atg=True,
@@ -319,39 +331,53 @@ def test_backward_compatibility():
             use_gpu=False,
         )
 
-        print("Creating unified system without SPEL...")
         system = UnifiedEntityResolutionSystem(config)
 
-        print("✓ System initialized successfully!")
-        print(f"  - SPEL enabled: {'✓' if system.spel_model else '✗'}")
-        print("  - Legacy components working: ✓")
-
         assert system.spel_model is None, "SPEL should be disabled"
+        # Other components should work
+        assert system.config is not None
 
-        print("✓ Backward compatibility test passed!")
 
-    except Exception as e:
-        print(f"✗ Backward compatibility test failed: {e}")
-        import traceback
+@pytest.mark.unit
+class TestSPELEdgeCases:
+    """Test SPEL edge cases."""
 
-        traceback.print_exc()
+    def test_empty_candidate_set(self):
+        """Test handling empty candidate set."""
+        manager = CandidateSetManager(fixed_candidates=[])
+        assert manager.get_vocab_size() == 1  # Just null entity
+
+    def test_very_large_candidate_set(self):
+        """Test handling very large candidate set."""
+        large_candidates = [f"Entity_{i}" for i in range(10000)]
+        manager = CandidateSetManager(fixed_candidates=large_candidates)
+        assert manager.get_vocab_size() == 10001
+
+    @pytest.mark.requires_model
+    def test_long_sequence(self):
+        """Test handling sequence at max length."""
+        model = create_spel_model(
+            model_name="roberta-base",
+            fixed_candidate_set_size=10,
+        )
+        model.load_candidate_sets(fixed_candidates=["Entity1"])
+
+        # Max length sequence
+        max_len = 512
+        input_ids = torch.randint(0, 1000, (1, max_len))
+        attention_mask = torch.ones(1, max_len)
+
+        outputs = model(input_ids, attention_mask)
+        assert outputs["logits"].shape[1] == max_len
+
+    def test_duplicate_candidates(self):
+        """Test handling duplicate candidates."""
+        candidates = ["Apple_Inc", "Apple_Inc", "Microsoft"]
+        manager = CandidateSetManager(fixed_candidates=candidates)
+        # Should deduplicate
+        unique_count = len(set(candidates))
+        assert manager.get_vocab_size() == unique_count + 1
 
 
 if __name__ == "__main__":
-    print("\n" + "=" * 80)
-    print("TESTING SPEL IMPLEMENTATION")
-    print("=" * 80)
-
-    # Run all tests
-    test_spel_config()
-    test_candidate_set_manager()
-    test_prediction_aggregator()
-    test_spel_model()
-    test_spel_forward()
-    test_unified_system_with_spel()
-    test_all_three_models()
-    test_backward_compatibility()
-
-    print("\n" + "=" * 80)
-    print("ALL SPEL TESTS COMPLETED")
-    print("=" * 80)
+    pytest.main([__file__, "-v"])

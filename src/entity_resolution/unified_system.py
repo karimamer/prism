@@ -28,6 +28,11 @@ from entity_resolution.models.resolution_processor import EntityResolutionProces
 from entity_resolution.models.retriever import EntityRetriever
 from entity_resolution.models.spel import SPELConfig, SPELModel
 from entity_resolution.models.unirel import UniRelConfig, UniRelModel
+from entity_resolution.telemetry import (
+    ConsensusStatistics,
+    RetrievalDiagnostics,
+    TelemetryCollector,
+)
 from entity_resolution.validation import (
     InputValidator,
     SystemConfig,
@@ -561,13 +566,16 @@ class UnifiedEntityResolutionSystem(nn.Module):
             )
         return False
 
-    def process_text(self, text: str, validate_input: bool = True) -> UnifiedSystemOutput:
+    def process_text(
+        self, text: str, validate_input: bool = True, enable_telemetry: bool = True
+    ) -> UnifiedSystemOutput:
         """
         Process a text document for entity resolution using all available models.
 
         Args:
             text: Input text
             validate_input: Whether to validate input text (default: True)
+            enable_telemetry: Whether to collect telemetry data (default: True)
 
         Returns:
             UnifiedSystemOutput with comprehensive results from all models
@@ -576,6 +584,9 @@ class UnifiedEntityResolutionSystem(nn.Module):
             ValueError: If input text is invalid
             RuntimeError: If processing fails
         """
+        # Initialize telemetry collector
+        telemetry_collector = TelemetryCollector() if enable_telemetry else None
+
         # Validate input text
         if validate_input:
             try:
@@ -585,6 +596,8 @@ class UnifiedEntityResolutionSystem(nn.Module):
                 )
             except (ValueError, TypeError) as e:
                 logger.error(f"Invalid input text: {e}")
+                if telemetry_collector:
+                    telemetry_collector.finalize(success=False, error=str(e))
                 raise
 
         try:
@@ -602,18 +615,47 @@ class UnifiedEntityResolutionSystem(nn.Module):
             logger.debug("Step 1: Entity-Focused Encoding")
             entity_embeddings = None
             if self.entity_encoder is not None:
-                with torch.no_grad():
-                    entity_embeddings = self.entity_encoder(
-                        encoded_text["input_ids"], encoded_text["attention_mask"]
-                    )
+                stage_ctx = (
+                    telemetry_collector.stage("entity_encoding")
+                    if telemetry_collector
+                    else None
+                )
+                if stage_ctx:
+                    with stage_ctx:
+                        with torch.no_grad():
+                            entity_embeddings = self.entity_encoder(
+                                encoded_text["input_ids"], encoded_text["attention_mask"]
+                            )
+                else:
+                    with torch.no_grad():
+                        entity_embeddings = self.entity_encoder(
+                            encoded_text["input_ids"], encoded_text["attention_mask"]
+                        )
 
             # Step 2: Multi-Source Candidate Generation
             logger.debug("Step 2: Multi-Source Candidate Generation")
-            candidates = self.retriever.retrieve(
-                encoded_text["input_ids"],
-                encoded_text["attention_mask"],
-                top_k=self.config.top_k_candidates,
-            )
+            retrieval_start_time = None
+            if telemetry_collector:
+                import time
+
+                retrieval_start_time = time.time()
+                stage_ctx = telemetry_collector.stage("candidate_retrieval")
+            else:
+                stage_ctx = None
+
+            if stage_ctx:
+                with stage_ctx:
+                    candidates = self.retriever.retrieve(
+                        encoded_text["input_ids"],
+                        encoded_text["attention_mask"],
+                        top_k=self.config.top_k_candidates,
+                    )
+            else:
+                candidates = self.retriever.retrieve(
+                    encoded_text["input_ids"],
+                    encoded_text["attention_mask"],
+                    top_k=self.config.top_k_candidates,
+                )
 
             # Format candidates for all models
             candidate_entities = []
@@ -630,6 +672,19 @@ class UnifiedEntityResolutionSystem(nn.Module):
 
             logger.debug(f"Retrieved {len(candidate_entities)} candidates")
 
+            # Record retrieval diagnostics
+            if telemetry_collector and retrieval_start_time:
+                import time
+
+                retrieval_time_ms = (time.time() - retrieval_start_time) * 1000.0
+                retrieval_diagnostics = RetrievalDiagnostics(
+                    num_queries=1,
+                    total_candidates=len(candidate_entities),
+                    avg_candidates_per_query=float(len(candidate_entities)),
+                    avg_retrieval_time_ms=retrieval_time_ms,
+                )
+                telemetry_collector.record_retrieval_diagnostics(retrieval_diagnostics)
+
             # Step 3: Cross-Model Entity Resolution
             logger.debug("Step 3: Cross-Model Entity Resolution")
             model_results = {}
@@ -637,47 +692,107 @@ class UnifiedEntityResolutionSystem(nn.Module):
             # Process with ATG Model
             if self.atg_model is not None:
                 logger.debug("Processing with ATG model")
-                try:
-                    atg_results = self._process_with_atg(text, candidate_entities)
-                    model_results["atg"] = atg_results
-                except Exception as e:
-                    logger.warning(f"ATG processing failed: {e}")
-                    model_results["atg"] = {"entities": [], "relations": [], "error": str(e)}
+                if telemetry_collector:
+                    with telemetry_collector.model("atg") as model_tel:
+                        try:
+                            atg_results = self._process_with_atg(text, candidate_entities)
+                            model_results["atg"] = atg_results
+                            model_tel.num_entities = len(atg_results.get("entities", []))
+                            model_tel.num_relations = len(atg_results.get("relations", []))
+                            model_tel.avg_confidence = atg_results.get("confidence_avg", 0.0)
+                        except Exception as e:
+                            logger.warning(f"ATG processing failed: {e}")
+                            model_results["atg"] = {"entities": [], "relations": [], "error": str(e)}
+                            raise
+                else:
+                    try:
+                        atg_results = self._process_with_atg(text, candidate_entities)
+                        model_results["atg"] = atg_results
+                    except Exception as e:
+                        logger.warning(f"ATG processing failed: {e}")
+                        model_results["atg"] = {"entities": [], "relations": [], "error": str(e)}
 
             # Process with RELiK Model
             if self.relik_model is not None:
                 logger.debug("Processing with RELiK model")
-                try:
-                    relik_results = self._process_with_relik(text, candidate_entities)
-                    model_results["relik"] = relik_results
-                except Exception as e:
-                    logger.warning(f"RELiK processing failed: {e}")
-                    model_results["relik"] = {"entities": [], "relations": [], "error": str(e)}
+                if telemetry_collector:
+                    with telemetry_collector.model("relik") as model_tel:
+                        try:
+                            relik_results = self._process_with_relik(text, candidate_entities)
+                            model_results["relik"] = relik_results
+                            model_tel.num_entities = len(relik_results.get("entities", []))
+                            model_tel.num_relations = len(relik_results.get("relations", []))
+                            model_tel.avg_confidence = relik_results.get("confidence_avg", 0.0)
+                        except Exception as e:
+                            logger.warning(f"RELiK processing failed: {e}")
+                            model_results["relik"] = {"entities": [], "relations": [], "error": str(e)}
+                            raise
+                else:
+                    try:
+                        relik_results = self._process_with_relik(text, candidate_entities)
+                        model_results["relik"] = relik_results
+                    except Exception as e:
+                        logger.warning(f"RELiK processing failed: {e}")
+                        model_results["relik"] = {"entities": [], "relations": [], "error": str(e)}
 
             # Process with SPEL Model
             if self.spel_model is not None:
                 logger.debug("Processing with SPEL model")
-                try:
-                    spel_results = self._process_with_spel(text, candidate_entities)
-                    model_results["spel"] = spel_results
-                except Exception as e:
-                    logger.warning(f"SPEL processing failed: {e}")
-                    model_results["spel"] = {"entities": [], "error": str(e)}
+                if telemetry_collector:
+                    with telemetry_collector.model("spel") as model_tel:
+                        try:
+                            spel_results = self._process_with_spel(text, candidate_entities)
+                            model_results["spel"] = spel_results
+                            model_tel.num_entities = len(spel_results.get("entities", []))
+                            model_tel.avg_confidence = spel_results.get("confidence_avg", 0.0)
+                        except Exception as e:
+                            logger.warning(f"SPEL processing failed: {e}")
+                            model_results["spel"] = {"entities": [], "error": str(e)}
+                            raise
+                else:
+                    try:
+                        spel_results = self._process_with_spel(text, candidate_entities)
+                        model_results["spel"] = spel_results
+                    except Exception as e:
+                        logger.warning(f"SPEL processing failed: {e}")
+                        model_results["spel"] = {"entities": [], "error": str(e)}
 
             # Process with UniREL Model
             if self.unirel_model is not None:
                 logger.debug("Processing with UniREL model")
-                try:
-                    unirel_results = self._process_with_unirel(text, candidate_entities)
-                    model_results["unirel"] = unirel_results
-                except Exception as e:
-                    logger.warning(f"UniREL processing failed: {e}")
-                    model_results["unirel"] = {"entities": [], "relations": [], "error": str(e)}
+                if telemetry_collector:
+                    with telemetry_collector.model("unirel") as model_tel:
+                        try:
+                            unirel_results = self._process_with_unirel(text, candidate_entities)
+                            model_results["unirel"] = unirel_results
+                            model_tel.num_entities = len(unirel_results.get("entities", []))
+                            model_tel.num_relations = len(unirel_results.get("relations", []))
+                            model_tel.avg_confidence = unirel_results.get("confidence_avg", 0.0)
+                        except Exception as e:
+                            logger.warning(f"UniREL processing failed: {e}")
+                            model_results["unirel"] = {"entities": [], "relations": [], "error": str(e)}
+                            raise
+                else:
+                    try:
+                        unirel_results = self._process_with_unirel(text, candidate_entities)
+                        model_results["unirel"] = unirel_results
+                    except Exception as e:
+                        logger.warning(f"UniREL processing failed: {e}")
+                        model_results["unirel"] = {"entities": [], "relations": [], "error": str(e)}
 
             # Process with base Reader (fallback)
             logger.debug("Processing with base reader")
-            reader_results = self.reader.process_text(text, candidate_entities)
-            model_results["reader"] = reader_results
+            if telemetry_collector:
+                with telemetry_collector.model("reader") as model_tel:
+                    reader_results = self.reader.process_text(text, candidate_entities)
+                    model_results["reader"] = reader_results
+                    model_tel.num_entities = len(reader_results.get("entities", []))
+                    model_tel.avg_confidence = self._calculate_avg_confidence(
+                        reader_results.get("entities", [])
+                    )
+            else:
+                reader_results = self.reader.process_text(text, candidate_entities)
+                model_results["reader"] = reader_results
 
             # Step 4: Consensus Entity Linking
             logger.debug("Step 4: Consensus Entity Linking")
@@ -691,11 +806,39 @@ class UnifiedEntityResolutionSystem(nn.Module):
                         all_entity_predictions.append(entity)
 
             # Apply multi-method consensus resolution
-            consensus_results = self.consensus.resolve_entities(all_entity_predictions, text)
+            if telemetry_collector:
+                with telemetry_collector.stage("consensus_resolution"):
+                    consensus_results = self.consensus.resolve_entities(all_entity_predictions, text)
+            else:
+                consensus_results = self.consensus.resolve_entities(all_entity_predictions, text)
 
             # Enhance consensus results with model agreement information
             for entity in consensus_results:
                 entity["model_agreement"] = self._calculate_model_agreement(entity, model_results)
+
+            # Record consensus statistics
+            if telemetry_collector:
+                # Calculate agreement metrics
+                model_agreement_scores = [
+                    entity.get("model_agreement", {}).get("agreement_score", 0.0)
+                    for entity in consensus_results
+                ]
+                avg_agreement = (
+                    sum(model_agreement_scores) / len(model_agreement_scores)
+                    if model_agreement_scores
+                    else 0.0
+                )
+
+                # Create consensus statistics
+                consensus_stats = ConsensusStatistics(
+                    total_entities=len(consensus_results),
+                    avg_agreement_score=avg_agreement,
+                    agreement_distribution={},
+                    confidence_distribution={},
+                    num_conflicts=0,  # Could be enhanced to track actual conflicts
+                    num_overlaps=0,  # Could be enhanced to track overlaps
+                )
+                telemetry_collector.record_consensus_statistics(consensus_stats)
 
             # Step 5: Structured Entity Output
             logger.debug("Step 5: Generating structured output")
@@ -727,6 +870,13 @@ class UnifiedEntityResolutionSystem(nn.Module):
                 "structured_output": True,
             }
 
+            # Finalize telemetry
+            pipeline_telemetry = None
+            if telemetry_collector:
+                telemetry_collector.num_entities_final = len(consensus_results)
+                telemetry_collector.num_relations_final = len(all_relations)
+                pipeline_telemetry = telemetry_collector.finalize(success=True)
+
             result = create_unified_output(
                 text=text,
                 entities=consensus_results,
@@ -736,6 +886,7 @@ class UnifiedEntityResolutionSystem(nn.Module):
                 pipeline_stages=pipeline_stages,
                 num_candidates=len(candidate_entities),
                 consensus_method="multi_method_weighted",
+                telemetry=pipeline_telemetry,
             )
 
             logger.debug(
@@ -745,6 +896,8 @@ class UnifiedEntityResolutionSystem(nn.Module):
 
         except Exception as e:
             logger.error(f"Failed to process text: {e}")
+            if telemetry_collector:
+                telemetry_collector.finalize(success=False, error=str(e))
             raise RuntimeError(f"Text processing failed: {e}") from e
 
     def _process_with_atg(self, text: str, candidate_entities: list[dict]) -> dict:

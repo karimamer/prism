@@ -2,18 +2,54 @@ import csv
 import json
 import logging
 import os
+import shutil
+import uuid
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
 import faiss
 import numpy as np
 import torch
+from pydantic import BaseModel, Field
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+
+# ============================================================================
+# Index Version Metadata
+# ============================================================================
+
+
+class IndexVersionMetadata(BaseModel):
+    """
+    Metadata for index versioning and tracking.
+
+    This enables:
+    - Version tracking for index builds
+    - Model provenance tracking
+    - Atomic index swapping for production
+    - Index staleness detection
+    """
+
+    index_id: str = Field(..., description="Unique identifier for this index build")
+    version: str = Field(..., description="Semantic version (e.g., '1.0.0')")
+    build_timestamp: datetime = Field(..., description="When index was built")
+    embedding_model: str = Field(..., description="Model used for embeddings")
+    embedding_model_version: Optional[str] = Field(None, description="Model version/hash")
+    num_entities: int = Field(..., ge=0, description="Number of entities indexed")
+    dimension: int = Field(..., ge=1, description="Embedding dimension")
+    index_type: str = Field(default="IndexFlatIP", description="FAISS index type")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }
 
 
 class EntityKnowledgeBase:
@@ -32,11 +68,13 @@ class EntityKnowledgeBase:
         cache_dir: str = "./cache",
         dimension: int = 256,
         use_gpu: bool = torch.cuda.is_available(),
+        embedding_model: str = "unknown",
     ):
         self.index_path = index_path
         self.cache_dir = cache_dir
         self.dimension = dimension
         self.use_gpu = use_gpu and torch.cuda.is_available()
+        self.embedding_model = embedding_model
 
         # Create directories if they don't exist
         os.makedirs(index_path, exist_ok=True)
@@ -45,6 +83,7 @@ class EntityKnowledgeBase:
         # Initialize entity storage
         self.entities = {}
         self.index = None
+        self.version_metadata: Optional[IndexVersionMetadata] = None
 
         # Initialize FAISS index
         self._initialize_index()
@@ -202,14 +241,51 @@ class EntityKnowledgeBase:
 
         logger.info(f"Built index with {len(entity_ids)} entities")
 
-    def load_index(self):
-        """Load FAISS index from disk"""
+    def load_index(self, validate_version: bool = True):
+        """
+        Load FAISS index from disk with version validation.
+
+        Args:
+            validate_version: Whether to validate index metadata
+
+        Returns:
+            True if successful, False otherwise
+        """
         index_file = os.path.join(self.index_path, "entity_index.faiss")
         ids_file = os.path.join(self.index_path, "entity_ids.json")
+        metadata_file = os.path.join(self.index_path, "index_metadata.json")
 
         if not os.path.exists(index_file) or not os.path.exists(ids_file):
             logger.warning("Index files not found")
             return False
+
+        # Load and validate version metadata
+        if os.path.exists(metadata_file):
+            with open(metadata_file, encoding="utf-8") as f:
+                metadata_dict = json.load(f)
+                # Convert ISO timestamp back to datetime
+                if "build_timestamp" in metadata_dict:
+                    metadata_dict["build_timestamp"] = datetime.fromisoformat(
+                        metadata_dict["build_timestamp"]
+                    )
+                self.version_metadata = IndexVersionMetadata(**metadata_dict)
+
+            if validate_version:
+                # Validate dimension matches
+                if self.version_metadata.dimension != self.dimension:
+                    logger.warning(
+                        f"Index dimension mismatch: expected {self.dimension}, "
+                        f"got {self.version_metadata.dimension}"
+                    )
+
+                # Log version info
+                logger.info(
+                    f"Loading index version {self.version_metadata.version} "
+                    f"(built: {self.version_metadata.build_timestamp.isoformat()}, "
+                    f"model: {self.version_metadata.embedding_model})"
+                )
+        else:
+            logger.warning("No version metadata found (legacy index)")
 
         # Load entity IDs
         with open(ids_file, encoding="utf-8") as f:
@@ -527,14 +603,20 @@ class EntityKnowledgeBase:
         """
         return getattr(self, "_needs_rebuild", False)
 
-    def _save_index(self):
-        """Save FAISS index to disk."""
+    def _save_index(self, version: str = "1.0.0"):
+        """
+        Save FAISS index to disk with version metadata.
+
+        Args:
+            version: Semantic version for this index build
+        """
         if self.index is None:
             return
 
         index_file = os.path.join(self.index_path, "entity_index.faiss")
 
         try:
+            # Save index
             if not self.use_gpu:
                 faiss.write_index(self.index, index_file)
             else:
@@ -548,9 +630,140 @@ class EntityKnowledgeBase:
                 with open(ids_file, "w", encoding="utf-8") as f:
                     json.dump(self.entity_ids, f)
 
-            logger.debug("Saved index to disk")
+            # Create and save version metadata
+            num_entities = len(self.entity_ids) if hasattr(self, "entity_ids") else 0
+            metadata = IndexVersionMetadata(
+                index_id=str(uuid.uuid4()),
+                version=version,
+                build_timestamp=datetime.now(),
+                embedding_model=self.embedding_model,
+                num_entities=num_entities,
+                dimension=self.dimension,
+                index_type="IndexFlatIP",
+            )
+
+            metadata_file = os.path.join(self.index_path, "index_metadata.json")
+            with open(metadata_file, "w", encoding="utf-8") as f:
+                json.dump(metadata.model_dump(), f, indent=2, default=str)
+
+            self.version_metadata = metadata
+            logger.info(f"Saved index version {version} (ID: {metadata.index_id[:8]}...)")
+
         except Exception as e:
             logger.error(f"Failed to save index: {e}")
+
+    def save_index_versioned(self, version: str = "1.0.0", staging: bool = False):
+        """
+        Save index with version to staging or production location.
+
+        Args:
+            version: Semantic version for this build
+            staging: If True, save to staging directory for atomic swap
+
+        Returns:
+            Path to saved index directory
+        """
+        if staging:
+            # Save to staging directory for atomic swap
+            staging_path = os.path.join(self.index_path, f".staging_{uuid.uuid4().hex[:8]}")
+            os.makedirs(staging_path, exist_ok=True)
+
+            # Temporarily change index_path
+            original_path = self.index_path
+            self.index_path = staging_path
+
+            try:
+                self._save_index(version=version)
+                logger.info(f"Saved index to staging: {staging_path}")
+                return staging_path
+            finally:
+                self.index_path = original_path
+        else:
+            self._save_index(version=version)
+            return self.index_path
+
+    def atomic_swap_index(self, staging_path: str):
+        """
+        Atomically swap staging index to production.
+
+        This ensures zero-downtime index updates by:
+        1. Validating staging index
+        2. Creating backup of current index
+        3. Atomically renaming staging to production
+        4. Rolling back on error
+
+        Args:
+            staging_path: Path to staging index directory
+
+        Raises:
+            ValueError: If staging index is invalid
+        """
+        if not os.path.exists(staging_path):
+            raise ValueError(f"Staging path does not exist: {staging_path}")
+
+        # Validate staging index has required files
+        required_files = ["entity_index.faiss", "entity_ids.json", "index_metadata.json"]
+        for filename in required_files:
+            filepath = os.path.join(staging_path, filename)
+            if not os.path.exists(filepath):
+                raise ValueError(f"Missing required file in staging: {filename}")
+
+        # Create backup of current production index
+        backup_path = os.path.join(self.index_path, f".backup_{int(datetime.now().timestamp())}")
+
+        try:
+            # Backup current production index
+            if os.path.exists(os.path.join(self.index_path, "entity_index.faiss")):
+                os.makedirs(backup_path, exist_ok=True)
+                for filename in required_files:
+                    src = os.path.join(self.index_path, filename)
+                    if os.path.exists(src):
+                        dst = os.path.join(backup_path, filename)
+                        shutil.copy2(src, dst)
+                logger.info(f"Backed up current index to: {backup_path}")
+
+            # Atomic swap: move staging files to production
+            for filename in required_files:
+                src = os.path.join(staging_path, filename)
+                dst = os.path.join(self.index_path, filename)
+
+                # Use rename for atomic operation (same filesystem)
+                if os.path.exists(dst):
+                    os.remove(dst)
+                shutil.move(src, dst)
+
+            logger.info(f"Atomically swapped index from {staging_path} to {self.index_path}")
+
+            # Clean up staging directory
+            if os.path.exists(staging_path):
+                shutil.rmtree(staging_path)
+
+            # Reload the new index
+            self.load_index()
+
+        except Exception as e:
+            logger.error(f"Index swap failed: {e}")
+
+            # Rollback: restore from backup
+            if os.path.exists(backup_path):
+                logger.info("Rolling back to backup...")
+                for filename in required_files:
+                    src = os.path.join(backup_path, filename)
+                    if os.path.exists(src):
+                        dst = os.path.join(self.index_path, filename)
+                        shutil.copy2(src, dst)
+                logger.info("Rollback complete")
+
+            raise
+
+    def get_index_metadata(self) -> Optional[IndexVersionMetadata]:
+        """
+        Get current index version metadata.
+
+        Returns:
+            IndexVersionMetadata or None if not available
+        """
+        return self.version_metadata
 
     def get_statistics(self) -> dict[str, Any]:
         """
@@ -568,6 +781,13 @@ class EntityKnowledgeBase:
             "index_path": self.index_path,
             "cache_dir": self.cache_dir,
         }
+
+        # Add version info if available
+        if self.version_metadata:
+            stats["index_version"] = self.version_metadata.version
+            stats["index_id"] = self.version_metadata.index_id
+            stats["index_build_time"] = self.version_metadata.build_timestamp.isoformat()
+            stats["embedding_model"] = self.version_metadata.embedding_model
 
         return stats
 

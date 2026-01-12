@@ -49,6 +49,10 @@ dependencies = [
     "transformers>=4.49.0",
 ]
 
+[project.scripts]
+uer = "entity_resolution.run_entity_resolution:main"
+prism-resolve = "entity_resolution.run_entity_resolution:main"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/entity_resolution"]
 

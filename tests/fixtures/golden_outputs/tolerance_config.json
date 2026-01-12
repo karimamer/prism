@@ -1,0 +1,48 @@
+{
+  "description": "Tolerance configuration for golden fixture comparison",
+  "tolerances": {
+    "confidence": {
+      "type": "float",
+      "absolute_tolerance": 0.05,
+      "relative_tolerance": 0.1,
+      "description": "Confidence scores may vary slightly due to model stochasticity"
+    },
+    "processing_timestamp": {
+      "type": "ignore",
+      "description": "Timestamps are always different, ignore in comparison"
+    },
+    "model_predictions.*.processing_time": {
+      "type": "ignore",
+      "description": "Processing time varies, ignore in comparison"
+    },
+    "num_candidates": {
+      "type": "integer",
+      "absolute_tolerance": 5,
+      "description": "Candidate count may vary slightly"
+    },
+    "mention_span": {
+      "type": "exact",
+      "description": "Spans must match exactly"
+    },
+    "entity_id": {
+      "type": "exact",
+      "description": "Entity IDs must match exactly"
+    },
+    "entity_type": {
+      "type": "exact",
+      "description": "Entity types must match exactly"
+    }
+  },
+  "comparison_modes": {
+    "strict": {
+      "description": "All fields must match exactly (except configured tolerances)",
+      "check_extra_fields": true,
+      "check_missing_fields": true
+    },
+    "lenient": {
+      "description": "Allow minor differences in non-critical fields",
+      "check_extra_fields": false,
+      "check_missing_fields": false
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "id": "doc2",
+  "text": "Apple 🍎 makes great products in Cupertino, California.",
+  "metadata": {
+    "source": "test",
+    "difficulty": "hard",
+    "note": "Contains emoji"
+  }
+}

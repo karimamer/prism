@@ -161,54 +161,72 @@ def save_output(results, output_file, format="json"):
                     serializable_results.append(dict(result))
             json.dump(serializable_results, f, indent=2, cls=DateTimeEncoder)
         elif format == "csv":
-            # CSV format
+            # CSV format - use new to_csv_rows() method
             import csv
 
-            # Extract all entities
-            all_entities = []
+            # Collect all CSV rows from all results
+            all_rows = []
             for result in results:
-                text = result["text"]
-                for entity in result["entities"]:
-                    entity_copy = entity.copy()
-                    entity_copy["text"] = text
-                    all_entities.append(entity_copy)
+                if hasattr(result, "to_csv_rows"):
+                    # Use the new Pydantic method
+                    all_rows.extend(result.to_csv_rows())
+                else:
+                    # Fallback for non-Pydantic results
+                    text = result.get("text", "")
+                    for entity in result.get("entities", []):
+                        row = {
+                            "text": text,
+                            "mention": entity.get("mention", ""),
+                            "mention_start": entity.get("mention_span", [0])[0] if isinstance(entity.get("mention_span"), list) else 0,
+                            "mention_end": entity.get("mention_span", [0, 0])[1] if isinstance(entity.get("mention_span"), list) else 0,
+                            "entity_id": entity.get("entity_id", ""),
+                            "entity_name": entity.get("entity_name", ""),
+                            "entity_type": entity.get("entity_type", ""),
+                            "confidence": entity.get("confidence", 0.0),
+                            "source_model": entity.get("source_model", ""),
+                            "agreement_score": "",
+                            "agreeing_models": "",
+                            "total_models": "",
+                        }
+                        all_rows.append(row)
 
-            # Write CSV header
-            writer = csv.DictWriter(
-                f,
-                fieldnames=[
+            if all_rows:
+                # Write CSV with all fields
+                fieldnames = [
                     "text",
                     "mention",
+                    "mention_start",
+                    "mention_end",
                     "entity_id",
                     "entity_name",
                     "entity_type",
                     "confidence",
-                ],
-            )
-            writer.writeheader()
-
-            # Write entities
-            for entity in all_entities:
-                writer.writerow(
-                    {
-                        "text": entity["text"],
-                        "mention": entity["mention"],
-                        "entity_id": entity["entity_id"],
-                        "entity_name": entity["entity_name"],
-                        "entity_type": entity["entity_type"],
-                        "confidence": entity["confidence"],
-                    }
-                )
+                    "source_model",
+                    "agreement_score",
+                    "agreeing_models",
+                    "total_models",
+                ]
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(all_rows)
         else:
             # Text format
             for result in results:
-                f.write(f"TEXT: {result['text']}\n")
+                text = result.text if hasattr(result, "text") else result.get("text", "")
+                entities = result.entities if hasattr(result, "entities") else result.get("entities", [])
+
+                f.write(f"TEXT: {text}\n")
                 f.write("ENTITIES:\n")
 
-                for entity in result["entities"]:
+                for entity in entities:
+                    mention = entity.mention if hasattr(entity, "mention") else entity.get("mention", "")
+                    entity_name = entity.entity_name if hasattr(entity, "entity_name") else entity.get("entity_name", "")
+                    entity_type = entity.entity_type.value if hasattr(entity, "entity_type") and hasattr(entity.entity_type, "value") else entity.get("entity_type", "")
+                    confidence = entity.confidence if hasattr(entity, "confidence") else entity.get("confidence", 0.0)
+
                     f.write(
-                        f"  - {entity['mention']} ({entity['entity_name']}, "
-                        f"{entity['entity_type']}) [{entity['confidence']:.2f}]\n"
+                        f"  - {mention} ({entity_name}, "
+                        f"{entity_type}) [{confidence:.2f}]\n"
                     )
                 f.write("\n")
 

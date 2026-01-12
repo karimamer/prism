@@ -571,14 +571,74 @@ class InputValidator:
     """Validator for various input types."""
 
     @staticmethod
-    def validate_text_input(text: str, max_length: int = 10000, min_length: int = 1) -> str:
+    def normalize_unicode(
+        text: str,
+        form: Literal["NFC", "NFD", "NFKC", "NFKD"] = "NFC",
+        cleanup_whitespace: bool = True,
+    ) -> str:
         """
-        Validate text input.
+        Normalize unicode text according to specified form.
+
+        Args:
+            text: Input text to normalize
+            form: Unicode normalization form (NFC, NFD, NFKC, NFKD)
+                - NFC: Canonical decomposition followed by canonical composition (default)
+                - NFD: Canonical decomposition
+                - NFKC: Compatibility decomposition followed by canonical composition
+                - NFKD: Compatibility decomposition
+            cleanup_whitespace: Whether to normalize whitespace characters
+
+        Returns:
+            Normalized text
+
+        Raises:
+            ValueError: If normalization form is invalid
+        """
+        import unicodedata
+        import re
+
+        if form not in ("NFC", "NFD", "NFKC", "NFKD"):
+            raise ValueError(f"Invalid normalization form: {form}. Use NFC, NFD, NFKC, or NFKD")
+
+        # Apply unicode normalization
+        normalized = unicodedata.normalize(form, text)
+
+        if cleanup_whitespace:
+            # Replace multiple whitespace with single space
+            normalized = re.sub(r'\s+', ' ', normalized)
+            # Remove zero-width spaces and other invisible characters
+            normalized = re.sub(r'[\u200b\u200c\u200d\ufeff]', '', normalized)
+            # Normalize various dash/hyphen characters to standard hyphen
+            normalized = normalized.replace('\u2010', '-')  # Hyphen
+            normalized = normalized.replace('\u2011', '-')  # Non-breaking hyphen
+            normalized = normalized.replace('\u2012', '-')  # Figure dash
+            normalized = normalized.replace('\u2013', '-')  # En dash
+            normalized = normalized.replace('\u2014', '-')  # Em dash
+            # Normalize quotation marks
+            normalized = normalized.replace('\u2018', "'")  # Left single quote
+            normalized = normalized.replace('\u2019', "'")  # Right single quote
+            normalized = normalized.replace('\u201c', '"')  # Left double quote
+            normalized = normalized.replace('\u201d', '"')  # Right double quote
+
+        return normalized
+
+    @staticmethod
+    def validate_text_input(
+        text: str,
+        max_length: int = 10000,
+        min_length: int = 1,
+        normalize_unicode: bool = True,
+        unicode_form: Literal["NFC", "NFD", "NFKC", "NFKD"] = "NFC",
+    ) -> str:
+        """
+        Validate text input with optional unicode normalization.
 
         Args:
             text: Input text
             max_length: Maximum allowed length
             min_length: Minimum allowed length
+            normalize_unicode: Whether to apply unicode normalization
+            unicode_form: Unicode normalization form (NFC, NFD, NFKC, NFKD)
 
         Returns:
             Validated and cleaned text
@@ -589,6 +649,11 @@ class InputValidator:
         if not isinstance(text, str):
             raise TypeError(f"Text must be a string, got {type(text)}")
 
+        # Apply unicode normalization if requested
+        if normalize_unicode:
+            text = InputValidator.normalize_unicode(text, form=unicode_form)
+
+        # Strip leading/trailing whitespace
         text = text.strip()
 
         if len(text) < min_length:

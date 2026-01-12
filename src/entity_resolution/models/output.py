@@ -161,6 +161,7 @@ class UnifiedSystemOutput(BaseModel):
     processing_timestamp: datetime = Field(
         default_factory=datetime.now, description="When processing was completed"
     )
+    telemetry: Optional[Any] = Field(None, description="Pipeline telemetry data")
 
     # Computed properties
     @property
@@ -196,6 +197,78 @@ class UnifiedSystemOutput(BaseModel):
     def to_json(self, **kwargs) -> str:
         """Convert to JSON string."""
         return self.model_dump_json(**kwargs)
+
+    def to_csv_rows(self) -> list[dict[str, Any]]:
+        """
+        Convert to list of CSV row dictionaries (one row per entity).
+
+        Returns:
+            List of dictionaries suitable for csv.DictWriter
+        """
+        rows = []
+        for entity in self.entities:
+            row = {
+                "text": self.text,
+                "mention": entity.mention,
+                "mention_start": entity.mention_span.start,
+                "mention_end": entity.mention_span.end,
+                "entity_id": entity.entity_id,
+                "entity_name": entity.entity_name,
+                "entity_type": entity.entity_type.value,
+                "confidence": entity.confidence,
+                "source_model": entity.source_model,
+            }
+
+            # Add agreement info if available
+            if entity.model_agreement:
+                row["agreement_score"] = entity.model_agreement.agreement_score
+                row["agreeing_models"] = ";".join(entity.model_agreement.agreeing_models)
+                row["total_models"] = entity.model_agreement.total_models
+            else:
+                row["agreement_score"] = ""
+                row["agreeing_models"] = ""
+                row["total_models"] = ""
+
+            rows.append(row)
+
+        return rows
+
+    def to_csv_relations(self) -> list[dict[str, Any]]:
+        """
+        Convert relations to list of CSV row dictionaries.
+
+        Returns:
+            List of dictionaries for relation CSV export
+        """
+        rows = []
+        for relation in self.relations:
+            row = {
+                "text": self.text,
+                "subject": relation.subject,
+                "predicate": relation.predicate,
+                "object": relation.object,
+                "confidence": relation.confidence,
+                "source_model": relation.source_model,
+            }
+
+            # Add span info if available
+            if relation.subject_span:
+                row["subject_start"] = relation.subject_span.start
+                row["subject_end"] = relation.subject_span.end
+            else:
+                row["subject_start"] = ""
+                row["subject_end"] = ""
+
+            if relation.object_span:
+                row["object_start"] = relation.object_span.start
+                row["object_end"] = relation.object_span.end
+            else:
+                row["object_start"] = ""
+                row["object_end"] = ""
+
+            rows.append(row)
+
+        return rows
 
 
 # ============================================================================
@@ -270,6 +343,7 @@ def create_unified_output(
     pipeline_stages: dict[str, bool],
     num_candidates: int,
     consensus_method: str = "multi_method_weighted",
+    telemetry: Optional[Any] = None,
 ) -> UnifiedSystemOutput:
     """Create UnifiedSystemOutput from raw system data."""
     # Convert entities
@@ -338,6 +412,7 @@ def create_unified_output(
         num_relations=len(relation_predictions),
         num_candidates=num_candidates,
         consensus_method=consensus_method,
+        telemetry=telemetry,
     )
 
 

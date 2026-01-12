@@ -1,0 +1,33 @@
+{
+  "text": "Apple 🍎 makes great products in Cupertino, California.",
+  "entities": [
+    {
+      "mention": "Apple",
+      "mention_span": {
+        "start": 0,
+        "end": 5
+      },
+      "entity_id": "Q312",
+      "entity_name": "Apple Inc.",
+      "entity_type": "ORGANIZATION",
+      "confidence": 0.88,
+      "source_model": "consensus"
+    },
+    {
+      "mention": "California",
+      "mention_span": {
+        "start": 47,
+        "end": 57
+      },
+      "entity_id": "Q99",
+      "entity_name": "California",
+      "entity_type": "LOCATION",
+      "confidence": 0.91,
+      "source_model": "consensus"
+    }
+  ],
+  "relations": [],
+  "num_entities": 2,
+  "num_relations": 0,
+  "consensus_method": "multi_method_weighted"
+}

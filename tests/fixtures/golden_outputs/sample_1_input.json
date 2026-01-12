@@ -1,0 +1,8 @@
+{
+  "id": "doc1",
+  "text": "Apple Inc. was founded by Steve Jobs in California.",
+  "metadata": {
+    "source": "test",
+    "difficulty": "medium"
+  }
+}
