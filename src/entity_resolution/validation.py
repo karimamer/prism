@@ -605,20 +605,20 @@ class InputValidator:
 
         if cleanup_whitespace:
             # Replace multiple whitespace with single space
-            normalized = re.sub(r'\s+', ' ', normalized)
+            normalized = re.sub(r"\s+", " ", normalized)
             # Remove zero-width spaces and other invisible characters
-            normalized = re.sub(r'[\u200b\u200c\u200d\ufeff]', '', normalized)
+            normalized = re.sub(r"[\u200b\u200c\u200d\ufeff]", "", normalized)
             # Normalize various dash/hyphen characters to standard hyphen
-            normalized = normalized.replace('\u2010', '-')  # Hyphen
-            normalized = normalized.replace('\u2011', '-')  # Non-breaking hyphen
-            normalized = normalized.replace('\u2012', '-')  # Figure dash
-            normalized = normalized.replace('\u2013', '-')  # En dash
-            normalized = normalized.replace('\u2014', '-')  # Em dash
+            normalized = normalized.replace("\u2010", "-")  # Hyphen
+            normalized = normalized.replace("\u2011", "-")  # Non-breaking hyphen
+            normalized = normalized.replace("\u2012", "-")  # Figure dash
+            normalized = normalized.replace("\u2013", "-")  # En dash
+            normalized = normalized.replace("\u2014", "-")  # Em dash
             # Normalize quotation marks
-            normalized = normalized.replace('\u2018', "'")  # Left single quote
-            normalized = normalized.replace('\u2019', "'")  # Right single quote
-            normalized = normalized.replace('\u201c', '"')  # Left double quote
-            normalized = normalized.replace('\u201d', '"')  # Right double quote
+            normalized = normalized.replace("\u2018", "'")  # Left single quote
+            normalized = normalized.replace("\u2019", "'")  # Right single quote
+            normalized = normalized.replace("\u201c", '"')  # Left double quote
+            normalized = normalized.replace("\u201d", '"')  # Right double quote
 
         return normalized
 

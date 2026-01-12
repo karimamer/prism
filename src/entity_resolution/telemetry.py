@@ -321,9 +321,7 @@ class TelemetryCollector:
         self.error_message = error
 
         total_duration_ms = (
-            (self.end_time - self.start_time).total_seconds() * 1000.0
-            if self.end_time
-            else None
+            (self.end_time - self.start_time).total_seconds() * 1000.0 if self.end_time else None
         )
 
         telemetry = PipelineTelemetry(

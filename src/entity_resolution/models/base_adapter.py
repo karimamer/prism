@@ -31,12 +31,8 @@ class ModelMetadata(BaseModel):
         default_factory=list,
         description="Model capabilities (e.g., ['entity_linking', 'relation_extraction'])",
     )
-    required_inputs: list[str] = Field(
-        default_factory=list, description="Required input fields"
-    )
-    optional_inputs: list[str] = Field(
-        default_factory=list, description="Optional input fields"
-    )
+    required_inputs: list[str] = Field(default_factory=list, description="Required input fields")
+    optional_inputs: list[str] = Field(default_factory=list, description="Optional input fields")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
 
@@ -48,9 +44,7 @@ class ModelPrediction(BaseModel):
         default_factory=list, description="Relation predictions"
     )
     confidence: float = Field(..., ge=0.0, le=1.0, description="Overall prediction confidence")
-    metadata: dict[str, Any] = Field(
-        default_factory=dict, description="Model-specific metadata"
-    )
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Model-specific metadata")
 
 
 # ============================================================================
@@ -274,7 +268,9 @@ class ModelRegistry:
         return list(cls._registry.keys())
 
     @classmethod
-    def create(cls, name: str, config: Any, device: Optional[torch.device] = None) -> BaseModelAdapter:
+    def create(
+        cls, name: str, config: Any, device: Optional[torch.device] = None
+    ) -> BaseModelAdapter:
         """
         Create adapter instance by name.
 
@@ -291,9 +287,7 @@ class ModelRegistry:
         """
         adapter_class = cls.get(name)
         if adapter_class is None:
-            raise ValueError(
-                f"Adapter '{name}' not found. Available: {cls.list_adapters()}"
-            )
+            raise ValueError(f"Adapter '{name}' not found. Available: {cls.list_adapters()}")
 
         return adapter_class(config=config, device=device)
 
@@ -312,6 +306,7 @@ def register_adapter(name: str):
         class MyModelAdapter(BaseModelAdapter):
             ...
     """
+
     def decorator(adapter_class: type[BaseModelAdapter]):
         ModelRegistry.register(name, adapter_class)
         return adapter_class

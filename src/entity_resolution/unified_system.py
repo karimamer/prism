@@ -616,9 +616,7 @@ class UnifiedEntityResolutionSystem(nn.Module):
             entity_embeddings = None
             if self.entity_encoder is not None:
                 stage_ctx = (
-                    telemetry_collector.stage("entity_encoding")
-                    if telemetry_collector
-                    else None
+                    telemetry_collector.stage("entity_encoding") if telemetry_collector else None
                 )
                 if stage_ctx:
                     with stage_ctx:
@@ -702,7 +700,11 @@ class UnifiedEntityResolutionSystem(nn.Module):
                             model_tel.avg_confidence = atg_results.get("confidence_avg", 0.0)
                         except Exception as e:
                             logger.warning(f"ATG processing failed: {e}")
-                            model_results["atg"] = {"entities": [], "relations": [], "error": str(e)}
+                            model_results["atg"] = {
+                                "entities": [],
+                                "relations": [],
+                                "error": str(e),
+                            }
                             raise
                 else:
                     try:
@@ -725,7 +727,11 @@ class UnifiedEntityResolutionSystem(nn.Module):
                             model_tel.avg_confidence = relik_results.get("confidence_avg", 0.0)
                         except Exception as e:
                             logger.warning(f"RELiK processing failed: {e}")
-                            model_results["relik"] = {"entities": [], "relations": [], "error": str(e)}
+                            model_results["relik"] = {
+                                "entities": [],
+                                "relations": [],
+                                "error": str(e),
+                            }
                             raise
                 else:
                     try:
@@ -770,7 +776,11 @@ class UnifiedEntityResolutionSystem(nn.Module):
                             model_tel.avg_confidence = unirel_results.get("confidence_avg", 0.0)
                         except Exception as e:
                             logger.warning(f"UniREL processing failed: {e}")
-                            model_results["unirel"] = {"entities": [], "relations": [], "error": str(e)}
+                            model_results["unirel"] = {
+                                "entities": [],
+                                "relations": [],
+                                "error": str(e),
+                            }
                             raise
                 else:
                     try:
@@ -808,7 +818,9 @@ class UnifiedEntityResolutionSystem(nn.Module):
             # Apply multi-method consensus resolution
             if telemetry_collector:
                 with telemetry_collector.stage("consensus_resolution"):
-                    consensus_results = self.consensus.resolve_entities(all_entity_predictions, text)
+                    consensus_results = self.consensus.resolve_entities(
+                        all_entity_predictions, text
+                    )
             else:
                 consensus_results = self.consensus.resolve_entities(all_entity_predictions, text)
 

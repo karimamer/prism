@@ -46,13 +46,12 @@ def pytest_collection_modifyitems(config, items):
 
 def pytest_addoption(parser):
     """Add custom command line options."""
+    parser.addoption("--runslow", action="store_true", default=False, help="run slow tests")
     parser.addoption(
-        "--runslow", action="store_true", default=False,
-        help="run slow tests"
-    )
-    parser.addoption(
-        "--run-e2e", action="store_true", default=False,
-        help="run end-to-end tests that download models"
+        "--run-e2e",
+        action="store_true",
+        default=False,
+        help="run end-to-end tests that download models",
     )
 
 
@@ -225,14 +224,18 @@ def mock_transformers_model(monkeypatch):
     class MockModel(torch.nn.Module):
         def __init__(self, config=None):
             super().__init__()
-            self.config = config or type('Config', (), {'hidden_size': 768})()
+            self.config = config or type("Config", (), {"hidden_size": 768})()
 
         def forward(self, input_ids, attention_mask=None, **kwargs):
             batch_size, seq_len = input_ids.shape
-            return type('Output', (), {
-                'last_hidden_state': torch.randn(batch_size, seq_len, 768),
-                'pooler_output': torch.randn(batch_size, 768),
-            })()
+            return type(
+                "Output",
+                (),
+                {
+                    "last_hidden_state": torch.randn(batch_size, seq_len, 768),
+                    "pooler_output": torch.randn(batch_size, 768),
+                },
+            )()
 
     class MockTokenizer:
         def __init__(self, *args, **kwargs):
@@ -243,10 +246,10 @@ def mock_transformers_model(monkeypatch):
             if isinstance(text, str):
                 text = [text]
             batch_size = len(text)
-            seq_len = kwargs.get('max_length', 128)
+            seq_len = kwargs.get("max_length", 128)
             return {
-                'input_ids': torch.randint(0, 1000, (batch_size, seq_len)),
-                'attention_mask': torch.ones(batch_size, seq_len),
+                "input_ids": torch.randint(0, 1000, (batch_size, seq_len)),
+                "attention_mask": torch.ones(batch_size, seq_len),
             }
 
         def encode(self, text, **kwargs):
@@ -292,6 +295,7 @@ def mock_faiss_index(monkeypatch):
 
     try:
         import faiss
+
         monkeypatch.setattr(faiss, "IndexFlatIP", mock_index_flat_ip)
     except ImportError:
         pass
@@ -340,6 +344,7 @@ def device_type(request):
 def capture_warnings():
     """Capture warnings during tests."""
     import warnings
+
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         yield w

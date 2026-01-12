@@ -161,8 +161,7 @@ class TestGoldenFixtures:
 
             for entity in result.entities:
                 assert 0.0 <= entity.confidence <= 1.0, (
-                    f"Confidence out of range: {entity.confidence} "
-                    f"for entity {entity.mention}"
+                    f"Confidence out of range: {entity.confidence} for entity {entity.mention}"
                 )
 
     def test_deterministic_output_structure(self, test_system):

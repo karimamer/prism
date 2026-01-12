@@ -177,8 +177,12 @@ def save_output(results, output_file, format="json"):
                         row = {
                             "text": text,
                             "mention": entity.get("mention", ""),
-                            "mention_start": entity.get("mention_span", [0])[0] if isinstance(entity.get("mention_span"), list) else 0,
-                            "mention_end": entity.get("mention_span", [0, 0])[1] if isinstance(entity.get("mention_span"), list) else 0,
+                            "mention_start": entity.get("mention_span", [0])[0]
+                            if isinstance(entity.get("mention_span"), list)
+                            else 0,
+                            "mention_end": entity.get("mention_span", [0, 0])[1]
+                            if isinstance(entity.get("mention_span"), list)
+                            else 0,
                             "entity_id": entity.get("entity_id", ""),
                             "entity_name": entity.get("entity_name", ""),
                             "entity_type": entity.get("entity_type", ""),
@@ -213,21 +217,34 @@ def save_output(results, output_file, format="json"):
             # Text format
             for result in results:
                 text = result.text if hasattr(result, "text") else result.get("text", "")
-                entities = result.entities if hasattr(result, "entities") else result.get("entities", [])
+                entities = (
+                    result.entities if hasattr(result, "entities") else result.get("entities", [])
+                )
 
                 f.write(f"TEXT: {text}\n")
                 f.write("ENTITIES:\n")
 
                 for entity in entities:
-                    mention = entity.mention if hasattr(entity, "mention") else entity.get("mention", "")
-                    entity_name = entity.entity_name if hasattr(entity, "entity_name") else entity.get("entity_name", "")
-                    entity_type = entity.entity_type.value if hasattr(entity, "entity_type") and hasattr(entity.entity_type, "value") else entity.get("entity_type", "")
-                    confidence = entity.confidence if hasattr(entity, "confidence") else entity.get("confidence", 0.0)
-
-                    f.write(
-                        f"  - {mention} ({entity_name}, "
-                        f"{entity_type}) [{confidence:.2f}]\n"
+                    mention = (
+                        entity.mention if hasattr(entity, "mention") else entity.get("mention", "")
                     )
+                    entity_name = (
+                        entity.entity_name
+                        if hasattr(entity, "entity_name")
+                        else entity.get("entity_name", "")
+                    )
+                    entity_type = (
+                        entity.entity_type.value
+                        if hasattr(entity, "entity_type") and hasattr(entity.entity_type, "value")
+                        else entity.get("entity_type", "")
+                    )
+                    confidence = (
+                        entity.confidence
+                        if hasattr(entity, "confidence")
+                        else entity.get("confidence", 0.0)
+                    )
+
+                    f.write(f"  - {mention} ({entity_name}, {entity_type}) [{confidence:.2f}]\n")
                 f.write("\n")
 
 

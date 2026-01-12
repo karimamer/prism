@@ -89,8 +89,12 @@ class TestUnicodeHandling:
         text2 = "Café"  # NFD form (e + combining accent)
 
         # Both should normalize to same form
-        normalized1 = InputValidator.validate_text_input(text1, normalize_unicode=True, unicode_form="NFC")
-        normalized2 = InputValidator.validate_text_input(text2, normalize_unicode=True, unicode_form="NFC")
+        normalized1 = InputValidator.validate_text_input(
+            text1, normalize_unicode=True, unicode_form="NFC"
+        )
+        normalized2 = InputValidator.validate_text_input(
+            text2, normalize_unicode=True, unicode_form="NFC"
+        )
 
         assert normalized1 == normalized2
         assert len(normalized1) == 4  # C-a-f-é
