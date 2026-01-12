@@ -9,13 +9,14 @@ Tests all new features:
 - Relation extraction
 """
 
-import pytest
-import torch
-import tempfile
 import json
+import tempfile
 from pathlib import Path
 
-from entity_resolution import UnifiedEntityResolutionSystem, SystemConfig
+import pytest
+import torch
+
+from entity_resolution import SystemConfig, UnifiedEntityResolutionSystem
 
 
 @pytest.fixture

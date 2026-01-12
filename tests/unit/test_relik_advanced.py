@@ -135,7 +135,7 @@ def test_hard_negative_mining():
     assert "positive_ids" in batch
     assert "negative_ids" in batch
 
-    print(f"✓ Training batch prepared:")
+    print("✓ Training batch prepared:")
     print(f"  - Query shape: {batch['query_ids'].shape}")
     print(f"  - Positive shape: {batch['positive_ids'].shape}")
     print(f"  - Negative shape: {batch['negative_ids'].shape}")

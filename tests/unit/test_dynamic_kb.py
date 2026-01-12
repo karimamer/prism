@@ -107,7 +107,7 @@ def test_remove_entity():
         assert len(kb.entities) == 2
         assert "Q2" not in kb.entity_ids
 
-        print(f"✓ Removed entity Q2")
+        print("✓ Removed entity Q2")
         print(f"  Remaining entities: {len(kb.entities)}")
 
     print("✓ Remove entity test passed")
@@ -300,7 +300,7 @@ def test_compact():
         # Manually add orphaned entity (in storage but not index)
         kb.entities["Q_orphan"] = {"name": "Orphaned Entity"}
 
-        print(f"✓ Added orphaned entity")
+        print("✓ Added orphaned entity")
         print(f"  Total in storage: {len(kb.entities)}")
         print(f"  Total in index: {len(kb.entity_ids)}")
 

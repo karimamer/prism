@@ -5,7 +5,7 @@ Handles special tokens for marking candidates (<ST0>, <ST1>) and relations (<R0>
 in the input sequence for proper candidate encoding.
 """
 
-from typing import Any, Optional, Union
+from typing import Union
 
 import torch
 from transformers import AutoTokenizer, PreTrainedTokenizer

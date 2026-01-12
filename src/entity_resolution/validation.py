@@ -594,8 +594,8 @@ class InputValidator:
         Raises:
             ValueError: If normalization form is invalid
         """
-        import unicodedata
         import re
+        import unicodedata
 
         if form not in ("NFC", "NFD", "NFKC", "NFKD"):
             raise ValueError(f"Invalid normalization form: {form}. Use NFC, NFD, NFKC, or NFKD")

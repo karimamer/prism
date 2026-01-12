@@ -16,12 +16,12 @@ Key Components:
 - ReLiKConfig: Configuration for ReLiK components
 """
 
-from .config import ReLiKConfig
 from .confidence_calibration import (
     ConfidenceCalibrator,
     PlattScaler,
     TemperatureScaler,
 )
+from .config import ReLiKConfig
 from .dynamic_index import DynamicIndexManager
 from .hard_negative_mining import HardNegativeMiner
 from .linker import CompleteEntityLinker, create_entity_linker

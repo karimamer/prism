@@ -5,10 +5,9 @@ Supports incremental updates to the retrieval index without
 full rebuilding, enabling efficient handling of evolving knowledge bases.
 """
 
-from typing import Any, Optional
+from typing import Any
 
 import torch
-import numpy as np
 
 from .retriever import ReLiKRetriever
 

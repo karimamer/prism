@@ -14,7 +14,6 @@ from pydantic import BaseModel, Field
 
 from entity_resolution.models.output import EntityPrediction, RelationPrediction
 
-
 # ============================================================================
 # Model Metadata
 # ============================================================================

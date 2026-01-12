@@ -5,7 +5,7 @@ Combines retriever and improved reader for end-to-end entity linking
 with proper candidate ranking and confidence scores.
 """
 
-from typing import Any, Optional
+from typing import Any
 
 import torch
 import torch.nn as nn

@@ -21,7 +21,6 @@ from entity_resolution.models.entity_encoder import EntityFocusedEncoder
 from entity_resolution.models.output import UnifiedSystemOutput, create_unified_output
 from entity_resolution.models.reader import EntityReader
 from entity_resolution.models.relik.unified_integration import (
-    ReLiKSystem,
     create_enhanced_relik_integration,
 )
 from entity_resolution.models.resolution_processor import EntityResolutionProcessor

@@ -8,7 +8,6 @@ retriever discrimination and ranking quality.
 from typing import Any, Optional
 
 import torch
-import torch.nn as nn
 
 from .retriever import ReLiKRetriever
 

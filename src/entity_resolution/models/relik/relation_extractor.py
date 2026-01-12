@@ -11,7 +11,6 @@ import torch
 import torch.nn as nn
 
 from .reader_improved import ImprovedReLiKReader
-from .tokenizer import ReLiKTokenizer
 
 
 class ReLiKRelationExtractor(nn.Module):

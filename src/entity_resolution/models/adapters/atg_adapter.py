@@ -15,7 +15,7 @@ from entity_resolution.models.base_adapter import (
     ModelPrediction,
     register_adapter,
 )
-from entity_resolution.models.output import EntityPrediction, EntitySpan, EntityType
+from entity_resolution.models.output import EntityPrediction
 
 
 @register_adapter("atg")

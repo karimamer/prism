@@ -17,7 +17,7 @@ import torch
 from .confidence_calibration import ConfidenceCalibrator
 from .dynamic_index import DynamicIndexManager
 from .hard_negative_mining import HardNegativeMiner
-from .linker import CompleteEntityLinker, create_entity_linker
+from .linker import CompleteEntityLinker
 from .reader_improved import ImprovedReLiKReader
 from .relation_extractor import ReLiKRelationExtractor
 from .retriever import ReLiKRetriever
